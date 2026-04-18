@@ -1,18 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
-  FolderOpen, 
-  Trash2, 
+  FolderOpen,
+  Trash2,
   ChevronRight,
   Loader2,
   Inbox
 } from "lucide-react"
 import toast from "react-hot-toast"
-import { cn } from "@/lib/utils"
 
 interface List {
   id: string
@@ -22,38 +21,26 @@ interface List {
 }
 
 export function SavedLists({ onSelectList }: { onSelectList: (id: string, name: string) => void }) {
-  const [lists, setLists] = useState<List[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
 
-  const fetchLists = async () => {
-    try {
-      setIsLoading(true)
-      console.log("[SavedLists] Fetching lists...")
-      const data = await api.get<List[]>("/api/lists")
-      console.log("[SavedLists] Received data:", data)
-      setLists(data)
-    } catch (err) {
-      console.error("[SavedLists] Fetch error:", err)
-      toast.error("Listeler yüklenemedi")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const { data: lists = [], isLoading } = useQuery({
+    queryKey: ["lists"],
+    queryFn: () => api.get<List[]>("/api/lists"),
+    staleTime: 30_000,
+  })
 
-  useEffect(() => {
-    fetchLists()
-  }, [])
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bu listeyi silmek istediğinize emin misiniz?")) return
-
-    try {
-      await api.delete(`/api/lists/${id}`)
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/lists/${id}`),
+    onSuccess: () => {
       toast.success("Liste silindi")
-      setLists(lists.filter(l => l.id !== id))
-    } catch (err) {
-      toast.error("Liste silinemedi")
-    }
+      queryClient.invalidateQueries({ queryKey: ["lists"] })
+    },
+    onError: () => toast.error("Liste silinemedi"),
+  })
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Bu listeyi silmek istediğinize emin misiniz?")) return
+    deleteMutation.mutate(id)
   }
 
   if (isLoading) {
