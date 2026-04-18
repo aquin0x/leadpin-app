@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { getBusinesses, getStats, startScrape, getScrapeJob, getScrapeJobs, deleteScrapeJob, stopScrapeJob, logOutreach } from './controllers/business.controller';
+import { getBusinesses, getBusiness, getStats, startScrape, getScrapeJob, getScrapeJobs, deleteScrapeJob, stopScrapeJob, logOutreach } from './controllers/business.controller';
 import { authMiddleware } from './middleware/auth';
 import { supabase } from './utils/supabase';
 
@@ -19,6 +19,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 // Auth protected routes
 app.get('/api/stats', authMiddleware, getStats);
 app.get('/api/businesses', authMiddleware, getBusinesses);
+app.get('/api/businesses/:id', authMiddleware, getBusiness);
 app.post('/api/scrape', authMiddleware, startScrape);
 app.get('/api/scrape-jobs', authMiddleware, getScrapeJobs);
 app.delete('/api/scrape/:id', authMiddleware, deleteScrapeJob);

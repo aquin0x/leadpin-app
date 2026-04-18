@@ -24,12 +24,21 @@ function DashboardContent() {
 
   const page = Number(searchParams.get("page")) || 1
   const limit = Number(searchParams.get("limit")) || 20
+  const sortBy = searchParams.get("sortBy") || "created_at"
+  const sortOrder = (searchParams.get("sortOrder") as "asc" | "desc") || "desc"
 
   const filters: BusinessFilters = {
     city: searchParams.get("city") || undefined,
+    district: searchParams.get("district") || undefined,
+    neighborhood: searchParams.get("neighborhood") || undefined,
     category: searchParams.get("category") || undefined,
     hasEmail: searchParams.get("hasEmail") === "true" ? true : undefined,
     hasWebsite: searchParams.get("hasWebsite") === "true" ? true : undefined,
+    hasPhone: searchParams.get("hasPhone") === "true" ? true : undefined,
+    minRating: searchParams.get("minRating") ? Number(searchParams.get("minRating")) : undefined,
+    minReviews: searchParams.get("minReviews") ? Number(searchParams.get("minReviews")) : undefined,
+    sortBy,
+    sortOrder,
     page,
     limit,
   }
@@ -40,7 +49,7 @@ function DashboardContent() {
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString())
       params.set(key, value)
-      router.push(`/dashboard?${params.toString()}`)
+      router.push(`/dashboard?${params.toString()}`, { scroll: false })
     },
     [searchParams, router]
   )
@@ -55,9 +64,23 @@ function DashboardContent() {
       const params = new URLSearchParams(searchParams.toString())
       params.set("limit", String(newLimit))
       params.delete("page")
-      router.push(`/dashboard?${params.toString()}`)
+      router.push(`/dashboard?${params.toString()}`, { scroll: false })
     },
     [searchParams, router]
+  )
+
+  const handleSort = useCallback(
+    (field: string) => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (sortBy === field) {
+        params.set("sortOrder", sortOrder === "asc" ? "desc" : "asc")
+      } else {
+        params.set("sortBy", field)
+        params.set("sortOrder", "desc")
+      }
+      router.push(`/dashboard?${params.toString()}`, { scroll: false })
+    },
+    [searchParams, router, sortBy, sortOrder]
   )
 
   const handleScrapeComplete = () => {
@@ -76,7 +99,7 @@ function DashboardContent() {
     <div className="min-h-screen bg-zinc-950">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10">
               <MapPin className="size-4 text-emerald-400" />
@@ -109,25 +132,28 @@ function DashboardContent() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl p-4">
+      <main className="mx-auto max-w-[1600px] p-4">
         <div className="mb-6">
           <StatsBar />
         </div>
 
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <div className="flex w-full flex-col gap-6 lg:w-[280px]">
+        <div className="flex flex-col gap-6 xl:flex-row">
+          <div className="flex w-full flex-col gap-6 xl:w-[320px]">
             <FilterBar onOpenScrapeModal={() => setScrapeModalOpen(true)} />
             <ScrapeHistory />
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <LeadTable
               data={data}
               isLoading={isLoading}
               page={page}
               limit={limit}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
               onPageChange={handlePageChange}
               onLimitChange={handleLimitChange}
+              onSort={handleSort}
             />
           </div>
         </div>

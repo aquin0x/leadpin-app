@@ -61,24 +61,23 @@ export async function getBusinesses(
   const params = new URLSearchParams()
 
   if (filters.city) params.set("city", filters.city)
+  if (filters.district) params.set("district", filters.district)
+  if (filters.neighborhood) params.set("neighborhood", filters.neighborhood)
   if (filters.category) params.set("category", filters.category)
   if (filters.hasEmail != null) params.set("hasEmail", String(filters.hasEmail))
   if (filters.hasWebsite != null) params.set("hasWebsite", String(filters.hasWebsite))
+  if (filters.hasPhone != null) params.set("hasPhone", String(filters.hasPhone))
+  if (filters.minRating != null) params.set("minRating", String(filters.minRating))
+  if (filters.minReviews != null) params.set("minReviews", String(filters.minReviews))
+  if (filters.sortBy) params.set("sortBy", filters.sortBy)
+  if (filters.sortOrder) params.set("sortOrder", filters.sortOrder)
   if (filters.page != null) params.set("page", String(filters.page))
   if (filters.limit != null) params.set("limit", String(filters.limit))
 
   const query = params.toString()
-  const raw = await fetchApi<{ data: Business[]; meta: { total: number; page: number; limit: number; totalPages: number } }>(
+  return fetchApi<PaginatedBusinesses>(
     `/api/businesses${query ? `?${query}` : ""}`
   )
-
-  // Flatten the backend response to match PaginatedBusinesses
-  return {
-    data: raw.data,
-    total: raw.meta.total,
-    page: raw.meta.page,
-    totalPages: raw.meta.totalPages,
-  }
 }
 
 export async function getBusiness(id: string): Promise<Business> {

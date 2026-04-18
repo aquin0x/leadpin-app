@@ -103,10 +103,14 @@ export function ScrapeHistory() {
               </div>
               
               <div className="flex flex-col gap-1 text-[11px] text-zinc-500">
-                <div className="flex items-center justify-between">
-                  <span className="truncate max-w-[120px]">{job.city} {job.district ? `/ ${job.district}` : ""}</span>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Clock className="size-3" />
+                <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                  <span className="truncate flex-1" title={`${job.city} ${job.district ? `/ ${job.district}` : ""} ${job.neighborhood ? `/ ${job.neighborhood}` : ""}`}>
+                    {job.city} 
+                    {job.district ? ` / ${job.district}` : ""} 
+                    {job.neighborhood ? ` / ${job.neighborhood}` : ""}
+                  </span>
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <Clock className="size-3 text-zinc-500" />
                     {format(new Date(job.created_at), "d MMM HH:mm", { locale: tr })}
                   </div>
                 </div>

@@ -121,8 +121,11 @@ export function LeadTable({
   isLoading,
   page,
   limit,
+  sortBy,
+  sortOrder,
   onPageChange,
   onLimitChange,
+  onSort,
 }: LeadTableProps) {
   if (isLoading) {
     return (
@@ -156,48 +159,79 @@ export function LeadTable({
   const startIndex = (page - 1) * limit + 1
   const endIndex = Math.min(page * limit, data.total)
 
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortBy !== field) return <div className="ml-1 size-3 opacity-20" />
+    return sortOrder === "asc" ? (
+      <ChevronRight className="-rotate-90 ml-1 size-3 text-emerald-400" />
+    ) : (
+      <ChevronRight className="rotate-90 ml-1 size-3 text-emerald-400" />
+    )
+  }
+
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-xl border border-zinc-800">
-        <Table>
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-sm overflow-x-auto">
+        <Table className="table-fixed min-w-[1200px] w-full">
           <TableHeader>
             <TableRow className="border-zinc-800 hover:bg-transparent">
-              <TableHead className="text-zinc-400">İşletme Adı</TableHead>
-              <TableHead className="text-zinc-400">Kategori</TableHead>
-              <TableHead className="text-zinc-400">Şehir</TableHead>
-              <TableHead className="text-zinc-400">Telefon</TableHead>
-              <TableHead className="text-zinc-400 text-center">Web</TableHead>
-              <TableHead className="text-zinc-400 text-center">E-posta</TableHead>
-              <TableHead className="text-zinc-400">Puan</TableHead>
-              <TableHead className="text-zinc-400">Yorum</TableHead>
-              <TableHead className="text-zinc-400 text-right">İşlemler</TableHead>
+              <TableHead 
+                className="w-[200px] text-zinc-400 cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("name")}
+              >
+                <div className="flex items-center">İşletme Adı <SortIcon field="name" /></div>
+              </TableHead>
+              <TableHead 
+                className="w-[140px] text-zinc-400 cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("category")}
+              >
+                <div className="flex items-center">Kategori <SortIcon field="category" /></div>
+              </TableHead>
+              <TableHead className="w-[100px] text-zinc-400">Şehir</TableHead>
+              <TableHead className="w-[120px] text-zinc-400">İlçe</TableHead>
+              <TableHead className="w-[140px] text-zinc-400">Mahalle</TableHead>
+              <TableHead className="w-[140px] text-zinc-400">Telefon</TableHead>
+              <TableHead className="w-[60px] text-zinc-400 text-center">Web</TableHead>
+              <TableHead className="w-[60px] text-zinc-400 text-center">E-posta</TableHead>
+              <TableHead 
+                className="w-[85px] text-zinc-400 text-center cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("rating")}
+              >
+                <div className="flex items-center justify-center">Puan <SortIcon field="rating" /></div>
+              </TableHead>
+              <TableHead 
+                className="w-[85px] text-zinc-400 text-center cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("reviews_count")}
+              >
+                <div className="flex items-center justify-center">Yorum <SortIcon field="reviews_count" /></div>
+              </TableHead>
+              <TableHead className="w-[120px] text-zinc-400 text-right">İşlemler</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.data.map((business) => {
               const hasEmail = business.contacts?.some((c) => c.email)
               const hasWebsite = !!business.website
-              const location = business.district
-                ? `${business.city} / ${business.district}`
-                : business.city
-
+              
               return (
                 <TableRow
                   key={business.id}
                   className="border-zinc-800/50 transition-colors duration-150 hover:bg-zinc-800/30"
                 >
-                  <TableCell>
+                  <TableCell className="truncate">
                     <Link
                       href={`/businesses/${business.id}`}
-                      className="font-semibold text-zinc-100 hover:text-emerald-400 transition-colors"
+                      className="font-semibold text-zinc-100 hover:text-emerald-400 transition-colors block truncate"
+                      title={business.name}
                     >
                       {business.name}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-zinc-400">
-                    {business.category}
+                  <TableCell className="text-zinc-400 truncate" title={business.category}>
+                    <span className="block truncate">{business.category}</span>
                   </TableCell>
-                  <TableCell className="text-zinc-300">{location}</TableCell>
+                  <TableCell className="text-zinc-300 truncate">{business.city}</TableCell>
+                  <TableCell className="text-zinc-300 truncate">{business.district || "—"}</TableCell>
+                  <TableCell className="text-zinc-300 truncate">{business.neighborhood || "—"}</TableCell>
                   <TableCell className="font-mono text-xs text-zinc-300">
                     {formatPhone(business.phone)}
                   </TableCell>
@@ -215,11 +249,14 @@ export function LeadTable({
                       <span className="text-zinc-600">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-zinc-300">
-                    {formatRating(business.rating, business.reviews_count)}
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="font-medium text-zinc-200">{business.rating || "0.0"}</span>
+                      <span className="text-yellow-500/80 text-[10px]">★</span>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-sm text-zinc-400">
-                    {business.reviews_count ? business.reviews_count.toLocaleString('tr-TR') : '—'}
+                  <TableCell className="text-center text-sm text-zinc-400">
+                    {business.reviews_count ? business.reviews_count.toLocaleString('tr-TR') : '0'}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1.5">

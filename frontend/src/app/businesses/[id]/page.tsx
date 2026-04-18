@@ -78,7 +78,7 @@ export default function BusinessDetailPage() {
         <BusinessInfoCard business={business} />
         <ContactSection contacts={business.contacts || []} />
         <OutreachPanel business={business} />
-        <OutreachHistory logs={business.outreachLogs || []} />
+        <OutreachHistory logs={business.outreach_logs || []} />
       </main>
     </div>
   )

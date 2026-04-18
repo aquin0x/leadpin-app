@@ -3,18 +3,45 @@ import { supabase } from '../utils/supabase';
 import { ScraperService } from '../services/scraper';
 
 export const getBusinesses = async (req: Request, res: Response) => {
-  const { city, category, hasEmail, hasWebsite, page = 1, limit = 20 } = req.query;
+  const { 
+    city, 
+    district,
+    neighborhood,
+    category, 
+    hasEmail, 
+    hasWebsite, 
+    hasPhone,
+    minRating,
+    maxRating,
+    minReviews,
+    sortBy = 'created_at',
+    sortOrder = 'desc',
+    page = 1, 
+    limit = 20 
+  } = req.query;
+  
   const offset = (Number(page) - 1) * Number(limit);
 
   let query = supabase
     .from('businesses')
-    .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false });
+    .select('*', { count: 'exact' });
 
+  // Filters
   if (city) query = query.ilike('city', `%${city}%`);
+  if (district) query = query.ilike('district', `%${district}%`);
+  if (neighborhood) query = query.ilike('neighborhood', `%${neighborhood}%`);
   if (category) query = query.ilike('category', `%${category}%`);
-  if (hasEmail === 'true') query = query.not('email', 'is', null);
-  if (hasWebsite === 'true') query = query.not('website', 'is', null);
+  
+  if (hasEmail === 'true') query = query.not('email', 'is', null).neq('email', '');
+  if (hasWebsite === 'true') query = query.not('website', 'is', null).neq('website', '');
+  if (hasPhone === 'true') query = query.not('phone', 'is', null).neq('phone', '');
+  
+  if (minRating) query = query.gte('rating', Number(minRating));
+  if (maxRating) query = query.lte('rating', Number(maxRating));
+  if (minReviews) query = query.gte('reviews_count', Number(minReviews));
+
+  // Sorting
+  query = query.order(String(sortBy), { ascending: sortOrder === 'asc' });
 
   const { data, error, count } = await query.range(offset, offset + Number(limit) - 1);
 
@@ -22,13 +49,51 @@ export const getBusinesses = async (req: Request, res: Response) => {
 
   return res.json({
     data,
-    meta: {
-      total: count || 0,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil((count || 0) / Number(limit))
-    }
+    total: count || 0,
+    page: Number(page),
+    limit: Number(limit),
+    totalPages: Math.ceil((count || 0) / Number(limit))
   });
+};
+
+export const getBusiness = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  console.log(`Fetching business data for ID: ${id}`);
+
+  try {
+    // Önce ana işletme verisini alalım
+    const { data: business, error: bError } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (bError || !business) {
+      console.error('Supabase Business Error:', bError);
+      return res.status(404).json({ message: 'İşletme bulunamadı' });
+    }
+
+    // İlişkili verileri ayrı sorgularla çekelim (daha güvenli)
+    const { data: contacts } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('business_id', id);
+
+    const { data: outreach_logs } = await supabase
+      .from('outreach_logs')
+      .select('*')
+      .eq('business_id', id)
+      .order('created_at', { ascending: false });
+
+    return res.json({
+      ...business,
+      contacts: contacts || [],
+      outreach_logs: outreach_logs || []
+    });
+  } catch (error: any) {
+    console.error('Unexpected Error in getBusiness:', error);
+    return res.status(500).json({ message: error.message });
+  }
 };
 
 export const getStats = async (req: Request, res: Response) => {

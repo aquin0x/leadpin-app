@@ -37,9 +37,14 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
   }
 
   const city = searchParams.get("city") || ""
+  const district = searchParams.get("district") || ""
+  const neighborhood = searchParams.get("neighborhood") || ""
   const category = searchParams.get("category") || ""
   const hasEmail = searchParams.get("hasEmail") === "true"
   const hasWebsite = searchParams.get("hasWebsite") === "true"
+  const hasPhone = searchParams.get("hasPhone") === "true"
+  const minRating = searchParams.get("minRating") || ""
+  const minReviews = searchParams.get("minReviews") || ""
 
   const updateParams = useCallback(
     (key: string, value: string | boolean | null) => {
@@ -59,62 +64,135 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     router.push(pathname)
   }, [router, pathname])
 
-  const hasActiveFilters = city || category || hasEmail || hasWebsite
+  const hasActiveFilters = city || district || neighborhood || category || hasEmail || hasWebsite || hasPhone || minRating || minReviews
 
   return (
-    <aside className="flex w-full flex-col gap-5 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 backdrop-blur-sm lg:w-[260px]">
+    <aside className="flex w-full flex-col gap-5 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 backdrop-blur-sm xl:w-[320px]">
       <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-300 uppercase tracking-wider">
         <Search className="size-4 text-zinc-500" />
         Filtreler
       </h3>
 
       <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="filter-city" className="text-xs text-zinc-500 font-bold uppercase">
+              Şehir
+            </Label>
+            <Input
+              id="filter-city"
+              placeholder="İstanbul..."
+              value={city}
+              onChange={(e) => updateParams("city", e.target.value)}
+              className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="filter-district" className="text-xs text-zinc-500 font-bold uppercase">
+              İlçe
+            </Label>
+            <Input
+              id="filter-district"
+              placeholder="Maltepe..."
+              value={district}
+              onChange={(e) => updateParams("district", e.target.value)}
+              className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
+            />
+          </div>
+        </div>
+
         <div className="space-y-2">
-          <Label htmlFor="filter-city" className="text-sm text-zinc-400">
-            Şehir
+          <Label htmlFor="filter-hood" className="text-xs text-zinc-500 font-bold uppercase">
+            Mahalle
           </Label>
           <Input
-            id="filter-city"
-            placeholder="İstanbul, Ankara..."
-            value={city}
-            onChange={(e) => updateParams("city", e.target.value)}
-            className="border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-500"
+            id="filter-hood"
+            placeholder="Altayçeşme..."
+            value={neighborhood}
+            onChange={(e) => updateParams("neighborhood", e.target.value)}
+            className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="filter-category" className="text-sm text-zinc-400">
+          <Label htmlFor="filter-category" className="text-xs text-zinc-500 font-bold uppercase">
             Kategori
           </Label>
           <Input
             id="filter-category"
-            placeholder="Restoran, kuaför..."
+            placeholder="Kafe, Restoran..."
             value={category}
             onChange={(e) => updateParams("category", e.target.value)}
-            className="border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-500"
+            className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
           />
         </div>
 
-        <div className="flex items-center justify-between">
-          <Label htmlFor="filter-email" className="text-sm text-zinc-400">
-            E-posta var
-          </Label>
-          <Switch
-            id="filter-email"
-            checked={hasEmail}
-            onCheckedChange={(checked) => updateParams("hasEmail", checked)}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="filter-min-rating" className="text-xs text-zinc-500 font-bold uppercase">
+              Min. Puan
+            </Label>
+            <Input
+              id="filter-min-rating"
+              type="number"
+              step="0.1"
+              placeholder="0.0"
+              value={minRating}
+              onChange={(e) => updateParams("minRating", e.target.value)}
+              className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="filter-min-reviews" className="text-xs text-zinc-500 font-bold uppercase">
+              Min. Yorum
+            </Label>
+            <Input
+              id="filter-min-reviews"
+              type="number"
+              placeholder="0"
+              value={minReviews}
+              onChange={(e) => updateParams("minReviews", e.target.value)}
+              className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <Label htmlFor="filter-website" className="text-sm text-zinc-400">
-            Web sitesi var
-          </Label>
-          <Switch
-            id="filter-website"
-            checked={hasWebsite}
-            onCheckedChange={(checked) => updateParams("hasWebsite", checked)}
-          />
+        <Separator className="bg-zinc-800/50" />
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="filter-email" className="text-sm text-zinc-400">
+              E-posta Var
+            </Label>
+            <Switch
+              id="filter-email"
+              checked={hasEmail}
+              onCheckedChange={(checked) => updateParams("hasEmail", checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="filter-website" className="text-sm text-zinc-400">
+              Web Sitesi Var
+            </Label>
+            <Switch
+              id="filter-website"
+              checked={hasWebsite}
+              onCheckedChange={(checked) => updateParams("hasWebsite", checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="filter-phone" className="text-sm text-zinc-400">
+              Telefon Var
+            </Label>
+            <Switch
+              id="filter-phone"
+              checked={hasPhone}
+              onCheckedChange={(checked) => updateParams("hasPhone", checked)}
+            />
+          </div>
         </div>
       </div>
 

@@ -120,93 +120,45 @@ export class ScraperService {
             const categoryEl = document.querySelector('button[jsaction*="category"]') as HTMLElement;
             const category = categoryEl?.textContent || '';
 
-            // === RATING EXTRACTION (multiple strategies) ===
+            // === RATING & REVIEWS (Back to Basics & Smarter) ===
             let rating = 0;
-
-            // Strategy 1: Look for aria-label on any element containing star rating text
-            const allAriaElements = document.querySelectorAll('[aria-label]');
-            for (const el of allAriaElements) {
-              const label = el.getAttribute('aria-label') || '';
-              // Match "4,3 yıldız" or "4.3 stars" or "4.3/5"
-              const starMatch = label.match(/([\d][,.][\d])\s*(yıldız|star|stars|étoile)/i) || label.match(/([\d][,.][\d])\/5/);
-              if (starMatch) {
-                rating = parseFloat(starMatch[1].replace(',', '.'));
-                break;
-              }
-            }
-
-            // Strategy 2: Look for role="img" with star rating
-            if (!rating) {
-              const imgEls = document.querySelectorAll('[role="img"]');
-              for (const el of imgEls) {
-                const label = el.getAttribute('aria-label') || '';
-                const m = label.match(/([\d][,.][\d])/);
-                if (m) {
-                  rating = parseFloat(m[1].replace(',', '.'));
-                  break;
-                }
-              }
-            }
-
-            // Strategy 3: Scan visible text for rating-like patterns
-            if (!rating) {
-              const mainContent = document.querySelector('div[role="main"]');
-              if (mainContent) {
-                const spans = mainContent.querySelectorAll('span');
-                for (const span of spans) {
-                  const text = (span.textContent || '').trim();
-                  if (/^[1-5][,\.]\d$/.test(text)) {
-                    rating = parseFloat(text.replace(',', '.'));
-                    break;
-                  }
-                }
-              }
-            }
-
-            // === REVIEWS COUNT EXTRACTION ===
             let reviews = 0;
 
-            // Strategy 1: Find text containing "yorum" keyword or numbers in parentheses
-            // e.g. "1.234 yorum", "(567)", "12 değerlendirme"
-            const mainContent = document.querySelector('div[role="main"]');
-            if (mainContent) {
-              const allText = mainContent.querySelectorAll('span, button, a');
-              for (const el of allText) {
-                const text = el.textContent?.trim() || '';
-                
-                // Match "1.234 yorum" or "1.234 değerlendirme"
-                const m = text.match(/([\d\.,]+)\s*(yorum|değerlendirme)/i);
-                if (m) {
-                  const numStr = m[1].replace(/[^\d]/g, '');
-                  if (numStr) {
-                    reviews = parseInt(numStr);
-                    break;
-                  }
-                }
+            // Strategy 1: Targeted Search for "Rating Area"
+            // Usually Google puts everything in a rating button or specialized area
+            const ratingElements = Array.from(document.querySelectorAll('[aria-label*="yıldız"], [aria-label*="star"], [aria-label*="yorum"], [aria-label*="review"]'));
+            
+            for (const el of ratingElements) {
+              const label = el.getAttribute('aria-label') || '';
+              
+              // Find Rating: "4,6 yıldız"
+              if (!rating) {
+                const rMatch = label.match(/([1-5][,\.][0-9])\s*(yıldız|star)/i);
+                if (rMatch) rating = parseFloat(rMatch[1].replace(',', '.'));
+              }
 
-                // Match "(1.234)" - often used for review counts next to stars
-                const m2 = text.match(/^\(([\d\.,]+)\)$/);
-                if (m2) {
-                  const numStr = m2[1].replace(/[^\d]/g, '');
-                  if (numStr) {
-                    reviews = parseInt(numStr);
-                    break;
-                  }
+              // Find Reviews: "627 yorum"
+              if (!reviews) {
+                const revMatch = label.match(/([\d\.,]+)\s*(yorum|değerlendirme|review|reviews)/i);
+                if (revMatch) {
+                  reviews = parseInt(revMatch[1].replace(/[^\d]/g, ''));
                 }
               }
             }
 
-            // Strategy 2: Check aria-labels for "yorum" or "değerlendirme"
+            // Strategy 2: Fallback for Reviews (Parentheses Scan - BEWARE OF PHONE)
             if (!reviews) {
-              const ariaEls = document.querySelectorAll('[aria-label*="yorum"], [aria-label*="değerlendirme"]');
-              for (const el of ariaEls) {
-                const label = el.getAttribute('aria-label') || '';
-                const m = label.match(/([\d\.,]+)\s*(yorum|değerlendirme)/i);
+              const spans = Array.from(document.querySelectorAll('span, button'));
+              for (const el of spans) {
+                const text = el.textContent?.trim() || '';
+                const m = text.match(/^\(([\d\.,]+)\)$/); // Match "(627)" exactly
+                
                 if (m) {
-                  const numStr = m[1].replace(/[^\d]/g, '');
-                  if (numStr) {
-                    reviews = parseInt(numStr);
-                    break;
+                  // If this element is inside a phone button or looks like a phone number, SKIP IT
+                  const isPhone = el.closest('[data-item-id*="phone"]') || text.includes('+') || text.length > 8;
+                  if (!isPhone) {
+                    reviews = parseInt(m[1].replace(/[^\d]/g, ''));
+                    if (reviews > 0) break;
                   }
                 }
               }
@@ -219,29 +171,65 @@ export class ScraperService {
           console.error(`Detail extraction failed for ${res.name}`);
         }
 
-        // Insert into DB (skip duplicates)
+        // === NEIGHBORHOOD VERIFICATION ===
+        // Google Maps often returns "nearby" results from adjacent neighborhoods.
+        // If a neighborhood is selected, we verify it exists in the address.
+        if (neighborhood) {
+          const addr = detailedData.address.toLowerCase();
+          const target = neighborhood.toLowerCase();
+          // Check for exact match or basic variations like "altayçeşme mah"
+          const isMatch = addr.includes(target) || 
+                          addr.includes(target.replace(' mahallesi', '')) ||
+                          addr.includes(target.replace(' mah.', ''));
+          
+          if (!isMatch) {
+            console.log(`  ⚠ Skipping: ${res.name} (Address doesn't match neighborhood ${neighborhood})`);
+            continue;
+          }
+        }
+
+        // Manual Upsert: First check if it exists
         const { data: existing } = await supabase
           .from('businesses')
           .select('id')
           .eq('google_maps_url', res.mapsUrl)
           .maybeSingle();
 
-        if (!existing) {
-          await supabase.from('businesses').insert({
-            name: res.name,
-            category: detailedData.category || category,
-            city,
-            district,
-            neighborhood,
-            address: detailedData.address,
-            phone: detailedData.phone,
-            website: detailedData.website,
-            google_maps_url: res.mapsUrl,
-            rating: detailedData.rating,
-            reviews_count: detailedData.reviews,
-            status: 'new'
-          });
-          console.log(`  → Saved: ${res.name} | Rating: ${detailedData.rating} | Reviews: ${detailedData.reviews} | Phone: ${detailedData.phone ? 'Yes' : 'No'}`);
+        const businessData = {
+          name: res.name,
+          category: detailedData.category || category,
+          city,
+          district,
+          neighborhood,
+          address: detailedData.address,
+          phone: detailedData.phone,
+          website: detailedData.website,
+          google_maps_url: res.mapsUrl,
+          rating: detailedData.rating,
+          reviews_count: detailedData.reviews,
+          status: 'new'
+        };
+
+        let dbError;
+        if (existing) {
+          // Update existing
+          const { error } = await supabase
+            .from('businesses')
+            .update(businessData)
+            .eq('id', existing.id);
+          dbError = error;
+        } else {
+          // Insert new
+          const { error } = await supabase
+            .from('businesses')
+            .insert(businessData);
+          dbError = error;
+        }
+
+        if (dbError) {
+          console.error(`  ✖ DB Error for ${res.name}:`, dbError.message);
+        } else {
+          console.log(`  ✓ [Rating: ${detailedData.rating} | Reviews: ${detailedData.reviews}] - ${res.name} (${existing ? 'Updated' : 'Created'})`);
         }
       }
 

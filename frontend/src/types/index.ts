@@ -49,9 +49,16 @@ export interface ScrapeJob {
 
 export interface BusinessFilters {
   city?: string
+  district?: string
+  neighborhood?: string
   category?: string
   hasEmail?: boolean
   hasWebsite?: boolean
+  hasPhone?: boolean
+  minRating?: number
+  minReviews?: number
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
   page?: number
   limit?: number
 }
