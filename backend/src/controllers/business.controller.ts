@@ -243,10 +243,18 @@ export const logOutreach = async (req: Request, res: Response) => {
 
   if (error) return res.status(500).json({ message: error.message });
 
-  // Update business status to contacted
-  await supabase.from('businesses').update({ status: 'contacted' }).eq('id', businessId);
+  // Get business phone for WA link
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('phone')
+    .eq('id', businessId)
+    .single();
 
-  return res.status(201).json(data);
+  const waLink = business?.phone 
+    ? `https://api.whatsapp.com/send?phone=${business.phone.replace(/\D/g, '')}&text=${encodeURIComponent(message_content)}`
+    : null;
+
+  return res.status(201).json({ ...data, waLink });
 };
 
 export const clearAllData = async (req: Request, res: Response) => {
