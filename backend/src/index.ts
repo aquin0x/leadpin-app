@@ -67,6 +67,6 @@ app.get('/api/scrape/:id/stream', authMiddleware, (req, res) => {
   });
 });
 
-app.listen(Number(port), '127.0.0.1', () => {
-  console.log(`🚀 Maps Lead Engine API runs on http://127.0.0.1:${port}`);
+app.listen(Number(port), '0.0.0.0', () => {
+  console.log(`🚀 Maps Lead Engine API runs on port ${port}`);
 });
