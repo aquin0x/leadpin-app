@@ -13,6 +13,7 @@ import { useBusinesses } from "@/hooks/useBusinesses"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { createClient } from "@/lib/supabase-client"
+import { SavedLists } from "@/components/dashboard/SavedLists"
 import toast from "react-hot-toast"
 import type { BusinessFilters } from "@/types"
 
@@ -21,6 +22,8 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const [scrapeModalOpen, setScrapeModalOpen] = useState(false)
+  const [currentView, setCurrentView] = useState<"main" | "lists" | "list_detail">("main")
+  const [selectedList, setSelectedList] = useState<{ id: string; name: string } | null>(null)
 
   const page = Number(searchParams.get("page")) || 1
   const limit = Number(searchParams.get("limit")) || 20
@@ -139,17 +142,22 @@ function DashboardContent() {
           <div className="flex w-full flex-col gap-1.5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-2 backdrop-blur-sm lg:w-[240px] shrink-0">
             <Button
               variant="ghost"
-              className="justify-start text-zinc-400 hover:text-white hover:bg-zinc-800 h-11 px-4 rounded-xl font-medium"
-              asChild
+              onClick={() => setCurrentView("main")}
+              className={cn(
+                "justify-start h-11 px-4 rounded-xl font-medium transition-colors",
+                currentView === "main" ? "bg-blue-500/10 text-blue-400" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+              )}
             >
-              <a href="/dashboard">
-                <LayoutDashboard className="mr-3 size-5" />
-                Ana Menü
-              </a>
+              <LayoutDashboard className="mr-3 size-5" />
+              Tüm Leads
             </Button>
             <Button
               variant="ghost"
-              className="justify-start text-zinc-400 hover:text-white hover:bg-zinc-800 h-11 px-4 rounded-xl font-medium"
+              onClick={() => setCurrentView("lists")}
+              className={cn(
+                "justify-start h-11 px-4 rounded-xl font-medium transition-colors",
+                currentView === "lists" ? "bg-blue-500/10 text-blue-400" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+              )}
             >
               <List className="mr-3 size-5" />
               Listeler
