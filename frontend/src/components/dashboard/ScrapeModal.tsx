@@ -202,7 +202,7 @@ export function ScrapeModal({ open, onOpenChange, onComplete }: ScrapeModalProps
               <Label htmlFor="scrape-neighborhood" className="text-zinc-400">
                 Mahalle
               </Label>
-              <Select value={neighborhood} onValueChange={setNeighborhood} disabled={!district || isLoadingNeighborhoods}>
+              <Select value={neighborhood} onValueChange={(val) => setNeighborhood(val || "")} disabled={!district || isLoadingNeighborhoods}>
                 <SelectTrigger id="scrape-neighborhood" className="w-full border-zinc-700 bg-zinc-800/50 text-zinc-200">
                   <SelectValue placeholder={isLoadingNeighborhoods ? "Yükleniyor..." : "Mahalle seçin"} />
                 </SelectTrigger>
