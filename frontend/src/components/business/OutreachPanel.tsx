@@ -101,19 +101,6 @@ export function OutreachPanel({ business }: OutreachPanelProps) {
           </Button>
         </div>
 
-        {/* Email Card (Coming Soon) */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-800/20 p-4 opacity-60">
-          <div className="flex items-center gap-2">
-            <Mail className="size-5 text-blue-400" />
-            <span className="font-semibold text-zinc-300">E-posta</span>
-            <Badge
-              variant="secondary"
-              className="ml-auto bg-zinc-800 text-xs text-zinc-500"
-            >
-              Yakında
-            </Badge>
-          </div>
-        </div>
       </CardContent>
     </Card>
   )

@@ -76,7 +76,6 @@ export default function BusinessDetailPage() {
       {/* Content */}
       <main className="mx-auto max-w-4xl space-y-6 p-4 pt-6">
         <BusinessInfoCard business={business} />
-        <ContactSection contacts={business.contacts || []} />
         <OutreachPanel business={business} />
         <OutreachHistory logs={business.outreach_logs || []} />
       </main>
