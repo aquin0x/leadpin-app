@@ -43,6 +43,7 @@ import { useWhatsAppOutreach } from "@/hooks/useOutreach"
 import type { Business, PaginatedBusinesses } from "@/types"
 import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
+import { AddToListModal } from "./AddToListModal"
 
 interface LeadTableProps {
   data: PaginatedBusinesses | undefined
@@ -135,6 +136,7 @@ export function LeadTable({
   onSort,
 }: LeadTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -323,12 +325,7 @@ export function LeadTable({
             <Button
               size="sm"
               className="h-8 bg-blue-600 text-white hover:bg-blue-500 gap-1.5 rounded-full px-4"
-              onClick={() => {
-                toast.success(`${selectedIds.length} işletme listeye kaydedilmeye hazır!`, {
-                  icon: '📂',
-                  duration: 3000
-                });
-              }}
+              onClick={() => setIsModalOpen(true)}
             >
               <ListPlus className="size-3.5" />
               Listeye Kaydet
@@ -344,6 +341,13 @@ export function LeadTable({
           </div>
         </div>
       )}
+
+      <AddToListModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        businessIds={selectedIds}
+        onSuccess={() => setSelectedIds([])}
+      />
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
