@@ -49,13 +49,13 @@ export function StatsBar() {
   ]
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-3 h-full">
       {items.map((stat) => (
         <Card
           key={stat.label}
-          className="border-zinc-800 bg-zinc-900/40 backdrop-blur-sm transition-all duration-150 hover:border-zinc-700 hover:bg-zinc-900/60 flex-1 min-w-[160px]"
+          className="border-zinc-800 bg-zinc-900/40 backdrop-blur-sm transition-all duration-150 hover:border-zinc-700 hover:bg-zinc-900/60 flex-1 min-w-[160px] h-full"
         >
-          <CardContent className="flex items-center gap-3 p-3">
+          <CardContent className="flex items-center gap-3 p-3 h-full justify-center">
             <div className={`rounded-lg p-2 ${stat.bgColor}`}>
               <stat.icon className={`size-4 ${stat.color}`} />
             </div>
@@ -67,7 +67,7 @@ export function StatsBar() {
                   {stat.value}
                 </p>
               )}
-              <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">{stat.label}</p>
+              <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider leading-none mt-1">{stat.label}</p>
             </div>
           </CardContent>
         </Card>

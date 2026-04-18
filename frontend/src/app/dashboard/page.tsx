@@ -132,11 +132,11 @@ function DashboardContent() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-[1800px] px-6 py-8 md:px-8">
+      <main className="mx-auto max-w-[1800px] px-6 py-6 md:px-8">
         {/* Top Header Section: Navigation + Stats */}
-        <div className="mb-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
           {/* Vertical Navigation Column */}
-          <div className="flex w-full flex-col gap-2 rounded-2xl border border-zinc-800/50 bg-zinc-900/50 p-2 backdrop-blur-sm lg:w-[260px] shrink-0">
+          <div className="flex w-full flex-col gap-1.5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-2 backdrop-blur-sm lg:w-[240px] shrink-0">
             <Button
               variant="ghost"
               className="justify-start text-zinc-400 hover:text-white hover:bg-zinc-800 h-11 px-4 rounded-xl font-medium"
