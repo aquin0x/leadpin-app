@@ -124,8 +124,16 @@ export class ScraperService {
           const detailPage = await browser.newPage();
           // Increase timeout significantly for long-running scrapes (potential throttling or slow network)
           await detailPage.goto(res.mapsUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-          await detailPage.waitForSelector('div[role="main"]', { timeout: 20000 }).catch(() => {});
-          
+          await detailPage.waitForSelector('div[role="main"] h1', { timeout: 20000 }).catch(() => {});
+
+          // Wait for the rating block to render (Google loads it async after h1)
+          await detailPage.waitForFunction(() => {
+            const main = document.querySelector('div[role="main"]');
+            if (!main) return false;
+            // Either the F7nice class exists or an aria-label with stars appears
+            return !!main.querySelector('.F7nice, [role="img"][aria-label*="yıldız"], [role="img"][aria-label*="star"]');
+          }, { timeout: 8000 }).catch(() => {});
+
           // Small random delay to avoid bot detection during long runs
           await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
 
@@ -133,52 +141,62 @@ export class ScraperService {
             const address = (document.querySelector('button[data-item-id="address"]') as HTMLElement)?.innerText || '';
             const phone = (document.querySelector('button[data-item-id*="phone"]') as HTMLElement)?.innerText || '';
             const website = (document.querySelector('a[data-item-id="authority"]') as HTMLAnchorElement)?.href || '';
-            
+
             // Category from the subtitle area
             const categoryEl = document.querySelector('button[jsaction*="category"]') as HTMLElement;
             const category = categoryEl?.textContent || '';
 
-            // === RATING & REVIEWS (Back to Basics & Smarter) ===
+            // === RATING & REVIEWS ===
+            // Scope the search to the main panel only (avoids footer/nav/phone noise).
+            const main = document.querySelector('div[role="main"]') || document.body;
             let rating = 0;
             let reviews = 0;
 
-            // Strategy 1: Targeted Search for "Rating Area"
-            // Usually Google puts everything in a rating button or specialized area
-            const ratingElements = Array.from(document.querySelectorAll('[aria-label*="yıldız"], [aria-label*="star"], [aria-label*="yorum"], [aria-label*="review"]'));
-            
-            for (const el of ratingElements) {
-              const label = el.getAttribute('aria-label') || '';
-              
-              // Find Rating: "4,6 yıldız"
-              if (!rating) {
-                const rMatch = label.match(/([1-5][,\.][0-9])\s*(yıldız|star)/i);
-                if (rMatch) rating = parseFloat(rMatch[1].replace(',', '.'));
+            // Strategy 1: The F7nice compound block — "4,6(627)" / "4.6 (627)"
+            // This is Google Maps' current canonical rating container next to the business title.
+            const nice = main.querySelector('.F7nice') as HTMLElement | null;
+            if (nice) {
+              const text = (nice.innerText || nice.textContent || '').replace(/\s+/g, ' ').trim();
+              const m = text.match(/([1-5](?:[,\.]\d)?)\s*[\(\[]\s*([\d\.,\s]+)\s*[\)\]]/);
+              if (m) {
+                rating = parseFloat(m[1].replace(',', '.'));
+                reviews = parseInt(m[2].replace(/[^\d]/g, ''), 10) || 0;
               }
-
-              // Find Reviews: "627 yorum"
-              if (!reviews) {
-                const revMatch = label.match(/([\d\.,]+)\s*(yorum|değerlendirme|review|reviews)/i);
-                if (revMatch) {
-                  reviews = parseInt(revMatch[1].replace(/[^\d]/g, ''));
+              // Also try the aria-label children within nice
+              if (!rating || !reviews) {
+                const labeled = Array.from(nice.querySelectorAll<HTMLElement>('[aria-label]'));
+                for (const el of labeled) {
+                  const label = el.getAttribute('aria-label') || '';
+                  if (!rating) {
+                    const r = label.match(/([1-5][,\.]\d)/);
+                    if (r && /(y[ıi]ld[ıi]z|star|puan)/i.test(label)) {
+                      rating = parseFloat(r[1].replace(',', '.'));
+                    }
+                  }
+                  if (!reviews) {
+                    const rv = label.match(/([\d\.,]+)\s*(yorum|de[ğg]erlendirme|review)/i);
+                    if (rv) reviews = parseInt(rv[1].replace(/[^\d]/g, ''), 10) || 0;
+                  }
                 }
               }
             }
 
-            // Strategy 2: Fallback for Reviews (Parentheses Scan - BEWARE OF PHONE)
-            if (!reviews) {
-              const spans = Array.from(document.querySelectorAll('span, button'));
-              for (const el of spans) {
-                const text = el.textContent?.trim() || '';
-                const m = text.match(/^\(([\d\.,]+)\)$/); // Match "(627)" exactly
-                
-                if (m) {
-                  // If this element is inside a phone button or looks like a phone number, SKIP IT
-                  const isPhone = el.closest('[data-item-id*="phone"]') || text.includes('+') || text.length > 8;
-                  if (!isPhone) {
-                    reviews = parseInt(m[1].replace(/[^\d]/g, ''));
-                    if (reviews > 0) break;
-                  }
+            // Strategy 2: aria-labels scoped to the header area only (near h1)
+            if (!rating || !reviews) {
+              const h1 = main.querySelector('h1');
+              const header = h1?.parentElement?.parentElement || main;
+              const labeled = Array.from(header.querySelectorAll<HTMLElement>('[aria-label]'));
+              for (const el of labeled) {
+                const label = el.getAttribute('aria-label') || '';
+                if (!rating) {
+                  const r = label.match(/([1-5][,\.]\d)\s*(y[ıi]ld[ıi]z|star|puan)/i);
+                  if (r) rating = parseFloat(r[1].replace(',', '.'));
                 }
+                if (!reviews) {
+                  const rv = label.match(/([\d\.,]+)\s*(yorum|de[ğg]erlendirme|review)/i);
+                  if (rv) reviews = parseInt(rv[1].replace(/[^\d]/g, ''), 10) || 0;
+                }
+                if (rating && reviews) break;
               }
             }
 
