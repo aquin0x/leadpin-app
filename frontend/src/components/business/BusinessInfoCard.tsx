@@ -31,7 +31,7 @@ export function BusinessInfoCard({ business }: BusinessInfoCardProps) {
     {
       icon: MapPin,
       label: "Adres",
-      value: business.address || "—",
+      value: (business.address || "—").replace(/^\+/, "").trim(),
     },
     {
       icon: Phone,
@@ -137,7 +137,6 @@ export function BusinessInfoCard({ business }: BusinessInfoCardProps) {
               variant="outline"
               className="w-full border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800"
             >
-              <MapPin className="mr-2 size-4 text-red-400" />
               Google Haritalar&apos;da Gör
               <ExternalLink className="ml-auto size-3.5 text-zinc-500" />
             </Button>

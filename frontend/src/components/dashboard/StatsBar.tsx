@@ -4,7 +4,7 @@ import {
   Building2,
   Phone,
   Globe,
-  CalendarPlus,
+  Calendar,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { useQuery } from "@tanstack/react-query"
@@ -42,33 +42,38 @@ export function StatsBar() {
     {
       label: "Bu Ay Eklenen",
       value: stats?.thisMonth ?? 0,
-      icon: CalendarPlus,
+      icon: Calendar,
       color: "text-amber-400",
       bgColor: "bg-amber-400/10",
     },
   ]
 
   return (
-    <div className="flex flex-wrap gap-3 h-full">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((stat) => (
         <Card
           key={stat.label}
-          className="border-zinc-800 bg-zinc-900/40 backdrop-blur-sm transition-all duration-150 hover:border-zinc-700 hover:bg-zinc-900/60 flex-1 min-w-[160px] h-full"
+          className="group relative border-zinc-800 bg-zinc-900/40 backdrop-blur-sm transition-all duration-150 hover:border-zinc-700 hover:bg-zinc-900/60"
         >
-          <CardContent className="flex items-center gap-3 p-3 h-full justify-center">
-            <div className={`rounded-lg p-2 ${stat.bgColor}`}>
-              <stat.icon className={`size-4 ${stat.color}`} />
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className={`flex size-11 items-center justify-center rounded-xl transition-colors ${stat.bgColor}`}>
+              <stat.icon className={`size-5 ${stat.color}`} />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-zinc-500">
+                {stat.label}
+              </p>
               {isLoading ? (
-                <div className="h-6 w-12 animate-pulse rounded bg-zinc-800" />
+                <div className="mt-1 h-7 w-16 animate-pulse rounded bg-zinc-800" />
               ) : (
-                <p className="text-xl font-bold tracking-tight text-zinc-100">
-                  {stat.value}
+                <p className="text-2xl font-bold tracking-tight text-zinc-100">
+                  {stat.value.toLocaleString('tr-TR')}
                 </p>
               )}
-              <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider leading-none mt-1">{stat.label}</p>
             </div>
+            
+            {/* Subtle glow effect on hover */}
+            <div className={`absolute -inset-px -z-10 rounded-xl opacity-0 transition-opacity blur-sm group-hover:opacity-10 ${stat.bgColor}`} />
           </CardContent>
         </Card>
       ))}

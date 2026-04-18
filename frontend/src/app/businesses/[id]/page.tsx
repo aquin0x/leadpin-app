@@ -64,8 +64,8 @@ export default function BusinessDetailPage() {
           >
             <ArrowLeft className="size-4" />
           </Button>
-          <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10">
-            <MapPin className="size-3.5 text-emerald-400" />
+          <div className="flex size-7 items-center justify-center rounded-lg bg-blue-500/10">
+            <Target className="size-3.5 text-blue-400" />
           </div>
           <h1 className="truncate text-sm font-semibold text-zinc-300">
             {business.name}

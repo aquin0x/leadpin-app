@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Maps Lead Engine — İşletme Bulucu",
+  title: "LeadSpin — İşletme Bulucu",
   description:
-    "Google Haritalar üzerinden işletmeleri tarayın, iletişim bilgilerini toplayın ve otomatik mesajlarla iletişime geçin.",
+    "Google Haritalar üzerinden işletmeleri tarayın, hedef kitlenizi bulun ve otomatik mesajlarla satışlarınızı artırın.",
 }
 
 export default function RootLayout({

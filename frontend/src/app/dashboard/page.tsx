@@ -2,7 +2,7 @@
 
 import { useState, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { MapPin, LogOut, User, LayoutDashboard, List } from "lucide-react"
+import { Target, LogOut, User, LayoutDashboard, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatsBar } from "@/components/dashboard/StatsBar"
 import { FilterBar } from "@/components/dashboard/FilterBar"
@@ -101,11 +101,11 @@ function DashboardContent() {
       <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10">
-              <MapPin className="size-4 text-emerald-400" />
+            <div className="flex size-9 items-center justify-center rounded-xl bg-blue-500/10 shadow-lg shadow-blue-500/5">
+              <Target className="size-5 text-blue-400 rotate-12 transition-transform group-hover:rotate-0" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight text-zinc-100">
-              Maps Lead Engine
+            <h1 className="text-xl font-black tracking-tight text-white italic uppercase bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+              LeadSpin
             </h1>
           </div>
 

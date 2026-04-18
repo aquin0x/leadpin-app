@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { MapPin, Loader2 } from "lucide-react"
+import { Target, Loader2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -77,15 +77,15 @@ export default function AuthPage() {
 
       <Card className="relative w-full max-w-md border-zinc-800 bg-zinc-900/80 backdrop-blur-xl">
         <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-emerald-500/10">
-            <MapPin className="size-7 text-emerald-400" />
+          <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-blue-500/10 shadow-xl shadow-blue-500/5">
+            <Target className="size-8 text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
-              Maps Lead Engine
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+              LeadSpin
             </h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              İşletmeleri keşfedin, iletişime geçin
+            <p className="mt-2 text-sm text-zinc-400">
+              İşletmeleri keşfedin, hedefleyin, kazanın
             </p>
           </div>
         </CardHeader>
