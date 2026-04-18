@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useRouter, usePathname } from "next/navigation"
 import { listScrapeJobs, stopScrapeJob, deleteScrapeJob } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import { History, Clock, CheckCircle2, XCircle, Loader2, StopCircle, Trash2 } from "lucide-react"
@@ -11,6 +12,8 @@ import toast from "react-hot-toast"
 
 export function ScrapeHistory() {
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const pathname = usePathname()
   const { data: jobs, isLoading } = useQuery({
     queryKey: queryKeys.scrapeJobs.list(),
     queryFn: listScrapeJobs,
@@ -73,7 +76,17 @@ export function ScrapeHistory() {
           jobs?.map((job) => (
             <div
               key={job.id}
-              className="group flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 transition-all hover:border-zinc-700 hover:bg-zinc-900/60"
+              onClick={() => {
+                const params = new URLSearchParams()
+                if (job.city) params.set("city", job.city)
+                if (job.district) params.set("district", job.district)
+                if (job.neighborhood) params.set("neighborhood", job.neighborhood)
+                if (job.category) params.set("category", job.category)
+                
+                router.push(`${pathname}?${params.toString()}`)
+                toast.success(`${job.category} sonuçları filtrelendi`, { icon: '🔍', duration: 2000 })
+              }}
+              className="group flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 transition-all hover:border-emerald-500/50 hover:bg-zinc-900/60 cursor-pointer"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-medium text-zinc-200">
