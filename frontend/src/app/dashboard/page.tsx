@@ -132,7 +132,7 @@ function DashboardContent() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-[1600px] p-4">
+      <main className="mx-auto max-w-[1800px] px-6 py-4 md:px-8">
         {/* Navigation Bar */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2 bg-zinc-900/50 p-1.5 rounded-xl border border-zinc-800/50 backdrop-blur-sm">
