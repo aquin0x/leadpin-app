@@ -139,7 +139,11 @@ export async function logWhatsApp(data: {
 }): Promise<{ waLink: string; logId: string }> {
   return fetchApi<{ waLink: string; logId: string }>("/api/outreach/whatsapp-log", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      businessId: data.businessId,
+      message_content: data.message,
+      type: "whatsapp"
+    }),
   })
 }
 

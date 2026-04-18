@@ -231,7 +231,13 @@ export const logOutreach = async (req: Request, res: Response) => {
 
   const { data, error } = await supabase
     .from('outreach_logs')
-    .insert({ business_id: businessId, type, message_content, status: 'sent', user_id: userId })
+    .insert({ 
+      business_id: businessId, 
+      type: type || 'whatsapp', 
+      message_content, 
+      status: 'sent', 
+      user_id: userId 
+    })
     .select()
     .single();
 
