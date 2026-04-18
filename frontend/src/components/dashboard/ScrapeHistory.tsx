@@ -124,7 +124,11 @@ export function ScrapeHistory() {
                   </span>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
                     <Clock className="size-3 text-zinc-500" />
-                    {format(new Date(job.created_at), "d MMM HH:mm", { locale: tr })}
+                    {job.created_at && !isNaN(new Date(job.created_at).getTime()) ? (
+                      format(new Date(job.created_at), "d MMM HH:mm", { locale: tr })
+                    ) : (
+                      "—"
+                    )}
                   </div>
                 </div>
                 

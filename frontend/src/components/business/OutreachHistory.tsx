@@ -85,12 +85,16 @@ export function OutreachHistory({ logs }: OutreachHistoryProps) {
                     )}
                   </TableCell>
                   <TableCell className="max-w-xs truncate text-sm text-zinc-300">
-                    {log.message || "—"}
+                    {log.message_content || "—"}
                   </TableCell>
                   <TableCell className="text-right text-sm text-zinc-400">
-                    {format(new Date(log.sentAt), "d MMM yyyy, HH:mm", {
-                      locale: tr,
-                    })}
+                    {log.created_at && !isNaN(new Date(log.created_at).getTime()) ? (
+                      format(new Date(log.created_at), "d MMM yyyy, HH:mm", {
+                        locale: tr,
+                      })
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
