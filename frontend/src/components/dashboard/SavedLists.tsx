@@ -35,9 +35,12 @@ export function SavedLists({ onSelectList }: { onSelectList: (id: string, name: 
   const fetchLists = async () => {
     try {
       setIsLoading(true)
+      console.log("[SavedLists] Fetching lists...")
       const data = await api.get<List[]>("/api/lists")
+      console.log("[SavedLists] Received data:", data)
       setLists(data)
     } catch (err) {
+      console.error("[SavedLists] Fetch error:", err)
       toast.error("Listeler yüklenemedi")
     } finally {
       setIsLoading(false)

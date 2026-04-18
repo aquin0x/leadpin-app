@@ -104,5 +104,5 @@ app.get('/api/scrape/:id/stream', authMiddleware, (req, res) => {
 });
 
 app.listen(Number(port), '0.0.0.0', () => {
-  console.log(`🚀 Maps Lead Engine API runs on port ${port}`);
+  console.log(`🚀 LeadPin API runs on port ${port}`);
 });

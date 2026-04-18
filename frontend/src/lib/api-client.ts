@@ -46,6 +46,10 @@ async function fetchApi<T>(
   })
 
   if (!response.ok) {
+    if (response.status === 401) {
+      console.warn("[fetchApi] Yetkisiz erişim! Oturumunuz sona ermiş veya geçersiz olabilir.");
+    }
+
     const errorText = await response.text().catch(() => "Okunamayan hata metni")
     console.error(`API Hatası [${response.status}]:`, errorText)
     throw new ApiError(

@@ -15,6 +15,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { createClient } from "@/lib/supabase-client"
 import { SavedLists } from "@/components/dashboard/SavedLists"
 import toast from "react-hot-toast"
+import { cn } from "@/lib/utils"
 import type { BusinessFilters } from "@/types"
 
 function DashboardContent() {
