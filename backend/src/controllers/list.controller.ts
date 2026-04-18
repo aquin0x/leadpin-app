@@ -3,9 +3,11 @@ import { supabase } from '../utils/supabase';
 
 export const getLists = async (req: Request, res: Response) => {
   try {
+    const userId = (req as any).user.id;
     const { data, error } = await supabase
       .from('lists')
       .select('*, items_count:list_items(count)')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -17,10 +19,12 @@ export const getLists = async (req: Request, res: Response) => {
 
 export const createList = async (req: Request, res: Response) => {
   try {
-    const { name, user_id } = req.body;
+    const { name } = req.body;
+    const userId = (req as any).user.id;
+    
     const { data, error } = await supabase
       .from('lists')
-      .insert({ name, user_id })
+      .insert({ name, user_id: userId })
       .select()
       .single();
 

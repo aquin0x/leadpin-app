@@ -78,10 +78,7 @@ export function AddToListModal({
 
     try {
       setIsSubmitting(true)
-      const newList = await api.post<List>("/lists", { 
-        name: newListName,
-        user_id: (await api.get<{id: string}>('/auth/me')).id // Simplified, replace with real user_id logic
-      })
+      const newList = await api.post<List>("/lists", { name: newListName })
       await handleAddSet(newList.id)
     } catch (err) {
       toast.error("Liste oluşturulamadı")

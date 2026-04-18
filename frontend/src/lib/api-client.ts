@@ -147,4 +147,17 @@ export async function logWhatsApp(data: {
   })
 }
 
-export { API_URL, ApiError }
+export { API_URL, ApiError, fetchApi }
+
+export const api = {
+  get: <T>(url: string) => fetchApi<T>(url, { method: "GET" }),
+  post: <T>(url: string, body?: any) => fetchApi<T>(url, { 
+    method: "POST", 
+    body: body ? JSON.stringify(body) : undefined 
+  }),
+  put: <T>(url: string, body?: any) => fetchApi<T>(url, { 
+    method: "PUT", 
+    body: body ? JSON.stringify(body) : undefined 
+  }),
+  delete: <T>(url: string) => fetchApi<T>(url, { method: "DELETE" }),
+}
