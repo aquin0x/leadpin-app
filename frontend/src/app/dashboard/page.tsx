@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { createClient } from "@/lib/supabase-client"
 import { SavedLists } from "@/components/dashboard/SavedLists"
+import { ListDetail } from "@/components/dashboard/ListDetail"
 import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
 import type { BusinessFilters } from "@/types"
@@ -108,7 +109,7 @@ function DashboardContent() {
             <div className="flex size-9 items-center justify-center rounded-xl bg-blue-500/10 shadow-lg shadow-blue-500/5">
               <Target className="size-5 text-blue-400 rotate-12 transition-transform group-hover:rotate-0" />
             </div>
-            <h1 className="text-xl font-black tracking-tight text-white italic uppercase bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+            <h1 className="font-sans text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
               LeadPin
             </h1>
           </div>
@@ -144,7 +145,7 @@ function DashboardContent() {
             <div className="flex flex-col gap-1.5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-2 backdrop-blur-sm">
               <Button
                 variant="ghost"
-                onClick={() => setCurrentView("main")}
+                onClick={() => { setCurrentView("main"); setSelectedList(null) }}
                 className={cn(
                   "justify-start h-11 px-4 rounded-xl font-medium transition-all group",
                   currentView === "main" ? "bg-blue-500/10 text-blue-400" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
@@ -155,10 +156,10 @@ function DashboardContent() {
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => setCurrentView("lists")}
+                onClick={() => { setCurrentView("lists"); setSelectedList(null) }}
                 className={cn(
                   "justify-start h-11 px-4 rounded-xl font-medium transition-all group",
-                  currentView === "lists" ? "bg-blue-500/10 text-blue-400" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
+                  currentView === "lists" || currentView === "list_detail" ? "bg-blue-500/10 text-blue-400" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
                 )}
               >
                 <List className={cn("mr-3 size-5", currentView === "lists" ? "text-blue-400" : "text-zinc-500 group-hover:text-zinc-300")} />
@@ -200,6 +201,15 @@ function DashboardContent() {
                   onSort={handleSort}
                 />
               </div>
+            ) : currentView === "list_detail" && selectedList ? (
+              <ListDetail
+                listId={selectedList.id}
+                listName={selectedList.name}
+                onBack={() => {
+                  setSelectedList(null)
+                  setCurrentView("lists")
+                }}
+              />
             ) : (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -208,19 +218,19 @@ function DashboardContent() {
                       <List className="size-8 text-blue-400" />
                     </div>
                     <div>
-                      <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white">Listelerim</h2>
+                      <h2 className="font-sans text-4xl font-bold tracking-tight text-white">Listelerim</h2>
                       <p className="font-medium text-zinc-500">Kayıtlı işletme koleksiyonlarınız</p>
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="rounded-[32px] border border-zinc-800 bg-zinc-900/40 p-1 backdrop-blur-xl">
                   <div className="rounded-[31px] bg-zinc-950/50 p-8">
-                    <SavedLists 
+                    <SavedLists
                       onSelectList={(id, name) => {
                         setSelectedList({ id, name })
-                        toast.success(`${name} listesi seçildi`)
-                      }} 
+                        setCurrentView("list_detail")
+                      }}
                     />
                   </div>
                 </div>

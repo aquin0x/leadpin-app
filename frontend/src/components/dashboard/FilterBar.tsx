@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
-import { useCallback } from "react"
 import { Search, X, ScanSearch, Trash2, Filter } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -105,7 +104,7 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     searchParams.get("minReviews")
 
   return (
-    <aside className="flex w-full flex-col gap-5 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 backdrop-blur-sm xl:w-[320px]">
+    <aside className="flex w-full flex-col gap-5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-sm">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-300 uppercase tracking-wider">
           <Search className="size-4 text-zinc-500" />

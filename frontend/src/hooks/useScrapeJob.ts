@@ -10,25 +10,27 @@ export function useScrapeJob(jobId: string | null) {
   const [job, setJob] = useState<ScrapeJob | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const fetchJobStatus = useCallback(async () => {
-    if (!jobId) return
+  const fetchJobStatus = useCallback(async (): Promise<"ok" | "error"> => {
+    if (!jobId) return "ok"
 
     try {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
-      
+
       const response = await fetch(`${API_URL}/api/scrape/${jobId}`, {
         headers: {
           'Authorization': `Bearer ${session?.access_token || ""}`
         }
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         setJob(data)
+        return "ok"
       }
-    } catch (error) {
-      console.error("Error fetching job status:", error)
+      return "error"
+    } catch {
+      return "error"
     }
   }, [jobId])
 
@@ -38,18 +40,35 @@ export function useScrapeJob(jobId: string | null) {
       return
     }
 
-    // Initial fetch
-    fetchJobStatus()
+    let failures = 0
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | null = null
 
-    // Polling interval: every 2 seconds
-    const interval = setInterval(() => {
-      // Only poll if job is still in progress
-      if (!job || (job.status !== "completed" && job.status !== "failed" && job.status !== "stopped")) {
-        fetchJobStatus()
+    const tick = async () => {
+      if (stopped) return
+      const isTerminal =
+        job && (job.status === "completed" || job.status === "failed" || job.status === "stopped")
+      if (!isTerminal) {
+        const result = await fetchJobStatus()
+        if (result === "error") {
+          failures += 1
+          if (failures >= 5) {
+            console.warn("[useScrapeJob] Polling stopped after repeated failures (backend unreachable?)")
+            return
+          }
+        } else {
+          failures = 0
+        }
       }
-    }, 2000)
+      timer = setTimeout(tick, 2000)
+    }
 
-    return () => clearInterval(interval)
+    tick()
+
+    return () => {
+      stopped = true
+      if (timer) clearTimeout(timer)
+    }
   }, [jobId, fetchJobStatus, job?.status])
 
   return { job, isFetching: isLoading }

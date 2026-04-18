@@ -61,6 +61,54 @@ export const addItemsToList = async (req: Request, res: Response) => {
   }
 };
 
+export const getListById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+
+    const { data: list, error: listError } = await supabase
+      .from('lists')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (listError) throw listError;
+    if (!list) return res.status(404).json({ message: 'Liste bulunamadı' });
+
+    const { data: items, error: itemsError } = await supabase
+      .from('list_items')
+      .select('business:businesses(*)')
+      .eq('list_id', id);
+
+    if (itemsError) throw itemsError;
+
+    const businesses = (items || [])
+      .map((item: any) => item.business)
+      .filter(Boolean);
+
+    res.json({ ...list, businesses });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const removeItemFromList = async (req: Request, res: Response) => {
+  try {
+    const { listId, businessId } = req.params;
+    const { error } = await supabase
+      .from('list_items')
+      .delete()
+      .eq('list_id', listId)
+      .eq('business_id', businessId);
+
+    if (error) throw error;
+    res.json({ message: 'İşletme listeden çıkarıldı' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const deleteList = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

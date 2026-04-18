@@ -83,9 +83,10 @@ export function SavedLists({ onSelectList }: { onSelectList: (id: string, name: 
       {lists.map((list) => {
         const count = list.items_count?.[0]?.count || 0
         return (
-          <Card 
+          <Card
             key={list.id}
-            className="group/list border-zinc-800 bg-zinc-900/40 transition-all hover:border-blue-500/50 hover:bg-zinc-900/60"
+            onClick={() => onSelectList(list.id, list.name)}
+            className="group/list cursor-pointer border-zinc-800 bg-zinc-900/40 transition-all hover:border-blue-500/50 hover:bg-zinc-900/60"
           >
             <CardHeader className="flex flex-row items-start justify-between space-y-0 p-5 pb-2">
               <div className="flex items-center gap-3">

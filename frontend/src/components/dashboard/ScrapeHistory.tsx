@@ -54,15 +54,15 @@ export function ScrapeHistory() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex w-full items-center justify-center rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-8 backdrop-blur-sm">
         <Loader2 className="size-6 animate-spin text-zinc-500" />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-300 uppercase tracking-wider px-2">
+    <div className="flex w-full flex-col gap-4 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-sm">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-300 uppercase tracking-wider">
         <History className="size-4 text-zinc-500" />
         Tarama Geçmişi
       </h3>

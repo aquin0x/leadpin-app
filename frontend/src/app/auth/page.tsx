@@ -81,7 +81,7 @@ export default function AuthPage() {
             <Target className="size-8 text-blue-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+            <h1 className="font-sans text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
               LeadPin
             </h1>
             <p className="mt-2 text-sm text-zinc-400">

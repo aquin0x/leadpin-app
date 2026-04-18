@@ -220,11 +220,36 @@ export function LeadTable({
               >
                 <div className="flex items-center">Kategori <SortIcon field="category" /></div>
               </TableHead>
-              <TableHead className="w-[100px] text-zinc-400">Şehir</TableHead>
-              <TableHead className="w-[120px] text-zinc-400">İlçe</TableHead>
-              <TableHead className="w-[140px] text-zinc-400">Mahalle</TableHead>
-              <TableHead className="w-[140px] text-zinc-400">Telefon</TableHead>
-              <TableHead className="w-[60px] text-zinc-400 text-center">Web</TableHead>
+              <TableHead
+                className="w-[100px] text-zinc-400 cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("city")}
+              >
+                <div className="flex items-center">Şehir <SortIcon field="city" /></div>
+              </TableHead>
+              <TableHead
+                className="w-[120px] text-zinc-400 cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("district")}
+              >
+                <div className="flex items-center">İlçe <SortIcon field="district" /></div>
+              </TableHead>
+              <TableHead
+                className="w-[140px] text-zinc-400 cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("neighborhood")}
+              >
+                <div className="flex items-center">Mahalle <SortIcon field="neighborhood" /></div>
+              </TableHead>
+              <TableHead
+                className="w-[140px] text-zinc-400 cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("phone")}
+              >
+                <div className="flex items-center">Telefon <SortIcon field="phone" /></div>
+              </TableHead>
+              <TableHead
+                className="w-[60px] text-zinc-400 text-center cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("website")}
+              >
+                <div className="flex items-center justify-center">Web <SortIcon field="website" /></div>
+              </TableHead>
               <TableHead 
                 className="w-[85px] text-zinc-400 text-center cursor-pointer hover:text-zinc-200"
                 onClick={() => onSort("rating")}
