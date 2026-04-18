@@ -21,12 +21,13 @@ export const getBusinesses = async (req: Request, res: Response) => {
   } = req.query;
   
   const userId = (req as any).user.id;
+  console.log(`[getBusinesses] Fetching for user: ${userId}`);
   const offset = (Number(page) - 1) * Number(limit);
 
   let query = supabase
     .from('businesses')
     .select('*', { count: 'exact' })
-    .eq('user_id', userId);
+    .or(`user_id.eq.${userId},user_id.is.null`);
 
   // Filters
   if (city) query = query.ilike('city', `%${city}%`);
@@ -50,7 +51,12 @@ export const getBusinesses = async (req: Request, res: Response) => {
 
   const { data, error, count } = await query.range(offset, offset + Number(limit) - 1);
 
-  if (error) return res.status(500).json({ message: error.message });
+  if (error) {
+    console.error(`[getBusinesses] Supabase Error:`, error.message);
+    return res.status(500).json({ message: error.message });
+  }
+
+  console.log(`[getBusinesses] Found ${count} businesses for user ${userId}`);
 
   return res.json({
     data,
@@ -112,13 +118,13 @@ export const getStats = async (req: Request, res: Response) => {
   const { count: total } = await supabase
     .from('businesses')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId);
+    .or(`user_id.eq.${userId},user_id.is.null`);
 
   // With website
   const { count: withWebsite } = await supabase
     .from('businesses')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
+    .or(`user_id.eq.${userId},user_id.is.null`)
     .not('website', 'is', null)
     .neq('website', '');
 
@@ -126,7 +132,7 @@ export const getStats = async (req: Request, res: Response) => {
   const { count: withPhone } = await supabase
     .from('businesses')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
+    .or(`user_id.eq.${userId},user_id.is.null`)
     .not('phone', 'is', null)
     .neq('phone', '');
 
@@ -136,7 +142,7 @@ export const getStats = async (req: Request, res: Response) => {
   const { count: thisMonth } = await supabase
     .from('businesses')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
+    .or(`user_id.eq.${userId},user_id.is.null`)
     .gte('created_at', firstOfMonth);
 
   return res.json({
