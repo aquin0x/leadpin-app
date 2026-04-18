@@ -1,7 +1,7 @@
 "use client"
 
 import {
-  MapPin,
+  Target,
   Phone,
   Globe,
   Tag,
@@ -29,7 +29,7 @@ export function BusinessInfoCard({ business }: BusinessInfoCardProps) {
 
   const infoItems = [
     {
-      icon: MapPin,
+      icon: Target,
       label: "Adres",
       value: (business.address || "—").replace(/^\+/, "").trim(),
     },

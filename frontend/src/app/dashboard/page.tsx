@@ -159,7 +159,7 @@ function DashboardContent() {
               onClick={() => setScrapeModalOpen(true)}
               className="justify-start bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 h-11 px-4 rounded-xl font-semibold transition-all duration-300 active:scale-95"
             >
-              <MapPin className="mr-3 size-5" />
+              <Target className="mr-3 size-5" />
               Yeni Tarama Başlat
             </Button>
           </div>
