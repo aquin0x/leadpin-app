@@ -32,7 +32,12 @@ export class ScraperService {
         const url = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
 
         console.log(`Searching for: ${searchQuery}`);
-        await page.goto(url, { waitUntil: 'networkidle2' });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        
+        // Wait for results container explicitly
+        await page.waitForSelector('div[role="feed"]', { timeout: 15000 }).catch(() => {
+          console.log("Feed selector not found, might be a direct hit or slow load.");
+        });
 
         // Handle cookie consent if visible
         try {
@@ -106,9 +111,9 @@ export class ScraperService {
 
         try {
           const detailPage = await browser.newPage();
-          // Increase timeout slightly for long-running scrapes (potential throttling)
-          await detailPage.goto(res.mapsUrl, { waitUntil: 'networkidle2', timeout: 20000 });
-          await detailPage.waitForSelector('div[role="main"]', { timeout: 10000 }).catch(() => {});
+          // Increase timeout significantly for long-running scrapes (potential throttling or slow network)
+          await detailPage.goto(res.mapsUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+          await detailPage.waitForSelector('div[role="main"]', { timeout: 20000 }).catch(() => {});
           
           // Small random delay to avoid bot detection during long runs
           await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));

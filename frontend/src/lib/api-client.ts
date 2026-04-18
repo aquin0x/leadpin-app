@@ -22,6 +22,8 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
   if (session?.access_token) {
     headers["Authorization"] = `Bearer ${session.access_token}`
+  } else {
+    console.warn("[getAuthHeaders] Token bulunamadı! Oturum kapalı olabilir.");
   }
 
   return headers
