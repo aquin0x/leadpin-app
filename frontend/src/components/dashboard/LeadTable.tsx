@@ -45,8 +45,11 @@ interface LeadTableProps {
   isLoading: boolean
   page: number
   limit: number
+  sortBy: string
+  sortOrder: "asc" | "desc"
   onPageChange: (page: number) => void
   onLimitChange: (limit: number) => void
+  onSort: (field: string) => void
 }
 
 function WhatsAppPopover({ business }: { business: Business }) {
