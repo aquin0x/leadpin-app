@@ -1,4 +1,3 @@
-import puppeteer from 'puppeteer';
 import { supabase } from '../utils/supabase';
 
 export interface ScrapeParams {
@@ -12,21 +11,28 @@ export interface ScrapeParams {
 
 export class ScraperService {
   static async startScraping({ jobId, userId, category, city, district, neighborhood }: ScrapeParams) {
+    const { default: puppeteer } = await import('puppeteer');
+    const headless = process.env.PUPPETEER_HEADLESS !== 'false';
+    const baseArgs = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled',
+      '--no-first-run',
+    ];
+    // These args stabilize headless on low-memory hosts but break a visible UI.
+    const headlessOnlyArgs = [
+      '--disable-gpu',
+      '--no-zygote',
+      '--single-process',
+      '--disable-accelerated-2d-canvas',
+      '--font-render-hinting=none',
+    ];
     const browser = await puppeteer.launch({
-      headless: true,
+      headless,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-accelerated-2d-canvas',
-        '--font-render-hinting=none'
-      ],
+      args: headless ? [...baseArgs, ...headlessOnlyArgs] : baseArgs,
+      defaultViewport: headless ? { width: 1280, height: 800 } : null,
     });
 
     try {
