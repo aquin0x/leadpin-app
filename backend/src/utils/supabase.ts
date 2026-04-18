@@ -12,7 +12,5 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     persistSession: false,
     autoRefreshToken: false,
   },
-  realtime: {
-    enabled: false,
   }
 });
