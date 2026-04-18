@@ -20,11 +20,13 @@ export const getBusinesses = async (req: Request, res: Response) => {
     limit = 20 
   } = req.query;
   
+  const userId = (req as any).user.id;
   const offset = (Number(page) - 1) * Number(limit);
 
   let query = supabase
     .from('businesses')
-    .select('*', { count: 'exact' });
+    .select('*', { count: 'exact' })
+    .eq('user_id', userId);
 
   // Filters
   if (city) query = query.ilike('city', `%${city}%`);
@@ -60,12 +62,15 @@ export const getBusiness = async (req: Request, res: Response) => {
   const { id } = req.params;
   console.log(`Fetching business data for ID: ${id}`);
 
+  const userId = (req as any).user.id;
+
   try {
     // Önce ana işletme verisini alalım
     const { data: business, error: bError } = await supabase
       .from('businesses')
       .select('*')
       .eq('id', id)
+      .eq('user_id', userId)
       .single();
 
     if (bError || !business) {
@@ -83,6 +88,7 @@ export const getBusiness = async (req: Request, res: Response) => {
       .from('outreach_logs')
       .select('*')
       .eq('business_id', id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     return res.json({
@@ -97,15 +103,19 @@ export const getBusiness = async (req: Request, res: Response) => {
 };
 
 export const getStats = async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
+
   // Total businesses
   const { count: total } = await supabase
     .from('businesses')
-    .select('*', { count: 'exact', head: true });
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
 
   // With website
   const { count: withWebsite } = await supabase
     .from('businesses')
     .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
     .not('website', 'is', null)
     .neq('website', '');
 
@@ -113,6 +123,7 @@ export const getStats = async (req: Request, res: Response) => {
   const { count: withPhone } = await supabase
     .from('businesses')
     .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
     .not('phone', 'is', null)
     .neq('phone', '');
 
@@ -122,6 +133,7 @@ export const getStats = async (req: Request, res: Response) => {
   const { count: thisMonth } = await supabase
     .from('businesses')
     .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
     .gte('created_at', firstOfMonth);
 
   return res.json({
@@ -139,10 +151,12 @@ export const startScrape = async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Kategori ve şehir zorunludur' });
   }
 
+  const userId = (req as any).user.id;
+
   // Create a job record
   const { data, error } = await supabase
     .from('scrape_jobs')
-    .insert({ category, city, district, neighborhood, status: 'pending' })
+    .insert({ category, city, district, neighborhood, status: 'pending', user_id: userId })
     .select()
     .single();
 
@@ -151,6 +165,7 @@ export const startScrape = async (req: Request, res: Response) => {
   // Start scraper in background
   ScraperService.startScraping({
     jobId: data.id,
+    userId,
     category,
     city,
     district,
@@ -162,7 +177,8 @@ export const startScrape = async (req: Request, res: Response) => {
 
 export const getScrapeJob = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { data, error } = await supabase.from('scrape_jobs').select('*').eq('id', id).single();
+  const userId = (req as any).user.id;
+  const { data, error } = await supabase.from('scrape_jobs').select('*').eq('id', id).eq('user_id', userId).single();
 
   if (error) return res.status(404).json({ message: 'İş bulunamadı' });
 
@@ -170,9 +186,11 @@ export const getScrapeJob = async (req: Request, res: Response) => {
 };
 
 export const getScrapeJobs = async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
   const { data, error } = await supabase
     .from('scrape_jobs')
     .select('*')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ message: error.message });
@@ -182,7 +200,8 @@ export const getScrapeJobs = async (req: Request, res: Response) => {
 
 export const deleteScrapeJob = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { error } = await supabase.from('scrape_jobs').delete().eq('id', id);
+  const userId = (req as any).user.id;
+  const { error } = await supabase.from('scrape_jobs').delete().eq('id', id).eq('user_id', userId);
 
   if (error) return res.status(500).json({ message: error.message });
 
@@ -191,10 +210,12 @@ export const deleteScrapeJob = async (req: Request, res: Response) => {
 
 export const stopScrapeJob = async (req: Request, res: Response) => {
   const { id } = req.params;
+  const userId = (req as any).user.id;
   const { error } = await supabase
     .from('scrape_jobs')
     .update({ status: 'failed', error_message: 'Kullanıcı tarafından durduruldu' })
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', userId);
 
   if (error) return res.status(500).json({ message: error.message });
 
@@ -203,10 +224,11 @@ export const stopScrapeJob = async (req: Request, res: Response) => {
 
 export const logOutreach = async (req: Request, res: Response) => {
   const { businessId, type, message_content } = req.body;
+  const userId = (req as any).user.id;
 
   const { data, error } = await supabase
     .from('outreach_logs')
-    .insert({ business_id: businessId, type, message_content, status: 'sent' })
+    .insert({ business_id: businessId, type, message_content, status: 'sent', user_id: userId })
     .select()
     .single();
 
@@ -219,13 +241,14 @@ export const logOutreach = async (req: Request, res: Response) => {
 };
 
 export const clearAllData = async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
   try {
     // Delete in order due to foreign keys if any (though currently simple)
-    await supabase.from('outreach_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    await supabase.from('scrape_jobs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    await supabase.from('businesses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('outreach_logs').delete().eq('user_id', userId);
+    await supabase.from('scrape_jobs').delete().eq('user_id', userId);
+    await supabase.from('businesses').delete().eq('user_id', userId);
 
-    return res.json({ message: 'Tüm veriler başarıyla temizlendi' });
+    return res.json({ message: 'Kendi verileriniz başarıyla temizlendi' });
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }

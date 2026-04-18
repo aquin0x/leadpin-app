@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase';
 
 export interface ScrapeParams {
   jobId: string;
+  userId: string;
   category: string;
   city: string;
   district?: string;
@@ -10,7 +11,7 @@ export interface ScrapeParams {
 }
 
 export class ScraperService {
-  static async startScraping({ jobId, category, city, district, neighborhood }: ScrapeParams) {
+  static async startScraping({ jobId, userId, category, city, district, neighborhood }: ScrapeParams) {
     const browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
@@ -194,6 +195,7 @@ export class ScraperService {
           .from('businesses')
           .select('id')
           .eq('google_maps_url', res.mapsUrl)
+          .eq('user_id', userId)
           .maybeSingle();
 
         const businessData = {
@@ -208,6 +210,7 @@ export class ScraperService {
           google_maps_url: res.mapsUrl,
           rating: detailedData.rating,
           reviews_count: detailedData.reviews,
+          user_id: userId,
           status: 'new'
         };
 
