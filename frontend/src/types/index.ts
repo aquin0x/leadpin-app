@@ -28,10 +28,11 @@ export interface Contact {
 
 export interface OutreachLog {
   id: string
-  type: 'whatsapp' | 'email'
+  business_id: string
+  type: 'whatsapp' | 'email' | 'instagram'
   status: string
-  message?: string
-  sentAt: string
+  message_content?: string
+  created_at: string
 }
 
 export interface ScrapeJob {

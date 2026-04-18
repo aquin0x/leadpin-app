@@ -42,7 +42,7 @@ export function AddToListModal({
   const fetchLists = async () => {
     try {
       setIsLoading(true)
-      const data = await api.get<List[]>("/lists")
+      const data = await api.get<List[]>("/api/lists")
       setLists(data)
     } catch (err) {
       console.error("Listeler yüklenemedi")
@@ -62,7 +62,7 @@ export function AddToListModal({
   const handleAddSet = async (listId: string) => {
     try {
       setIsSubmitting(true)
-      await api.post(`/lists/${listId}/items`, { businessIds })
+      await api.post(`/api/lists/${listId}/items`, { businessIds })
       toast.success("İşletmeler listeye eklendi")
       onSuccess()
       onOpenChange(false)
@@ -78,7 +78,7 @@ export function AddToListModal({
 
     try {
       setIsSubmitting(true)
-      const newList = await api.post<List>("/lists", { name: newListName })
+      const newList = await api.post<List>("/api/lists", { name: newListName })
       await handleAddSet(newList.id)
     } catch (err) {
       toast.error("Liste oluşturulamadı")
