@@ -49,25 +49,25 @@ export function StatsBar() {
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="flex flex-wrap gap-3">
       {items.map((stat) => (
         <Card
           key={stat.label}
-          className="border-zinc-800 bg-zinc-900/50 backdrop-blur-sm transition-all duration-150 hover:border-zinc-700 hover:bg-zinc-900/80"
+          className="border-zinc-800 bg-zinc-900/40 backdrop-blur-sm transition-all duration-150 hover:border-zinc-700 hover:bg-zinc-900/60 flex-1 min-w-[160px]"
         >
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className={`rounded-xl p-2.5 ${stat.bgColor}`}>
-              <stat.icon className={`size-5 ${stat.color}`} />
+          <CardContent className="flex items-center gap-3 p-3">
+            <div className={`rounded-lg p-2 ${stat.bgColor}`}>
+              <stat.icon className={`size-4 ${stat.color}`} />
             </div>
             <div>
               {isLoading ? (
-                <div className="h-7 w-16 animate-pulse rounded bg-zinc-800" />
+                <div className="h-6 w-12 animate-pulse rounded bg-zinc-800" />
               ) : (
-                <p className="text-2xl font-bold tracking-tight text-zinc-100">
+                <p className="text-xl font-bold tracking-tight text-zinc-100">
                   {stat.value}
                 </p>
               )}
-              <p className="text-sm text-zinc-400">{stat.label}</p>
+              <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">{stat.label}</p>
             </div>
           </CardContent>
         </Card>

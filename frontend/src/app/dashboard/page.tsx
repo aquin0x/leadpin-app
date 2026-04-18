@@ -132,46 +132,42 @@ function DashboardContent() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-[1800px] px-6 py-4 md:px-8">
-        {/* Navigation Bar */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2 bg-zinc-900/50 p-1.5 rounded-xl border border-zinc-800/50 backdrop-blur-sm">
+      <main className="mx-auto max-w-[1800px] px-6 py-8 md:px-8">
+        {/* Top Header Section: Navigation + Stats */}
+        <div className="mb-10 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+          {/* Vertical Navigation Column */}
+          <div className="flex w-full flex-col gap-2 rounded-2xl border border-zinc-800/50 bg-zinc-900/50 p-2 backdrop-blur-sm lg:w-[260px] shrink-0">
             <Button
               variant="ghost"
-              className="text-zinc-400 hover:text-white hover:bg-zinc-800 h-10 px-6 rounded-lg font-medium"
+              className="justify-start text-zinc-400 hover:text-white hover:bg-zinc-800 h-11 px-4 rounded-xl font-medium"
               asChild
             >
               <a href="/dashboard">
-                <LayoutDashboard className="mr-2 size-4" />
+                <LayoutDashboard className="mr-3 size-5" />
                 Ana Menü
               </a>
             </Button>
             <Button
               variant="ghost"
-              className="text-zinc-400 hover:text-white hover:bg-zinc-800 h-10 px-6 rounded-lg font-medium"
+              className="justify-start text-zinc-400 hover:text-white hover:bg-zinc-800 h-11 px-4 rounded-xl font-medium"
             >
-              <List className="mr-2 size-4" />
+              <List className="mr-3 size-5" />
               Listeler
             </Button>
-            <div className="w-px h-6 bg-zinc-800 mx-2" />
+            <div className="my-1 h-px bg-zinc-800/50" />
             <Button
               onClick={() => setScrapeModalOpen(true)}
-              className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 h-10 px-6 rounded-lg font-semibold"
+              className="justify-start bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 h-11 px-4 rounded-xl font-semibold transition-all duration-300 active:scale-95"
             >
-              <MapPin className="mr-2 size-4" />
-              Yeni Tarama Oluştur
+              <MapPin className="mr-3 size-5" />
+              Yeni Tarama Başlat
             </Button>
           </div>
 
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold bg-gradient-to-r from-zinc-100 to-zinc-500 bg-clip-text text-transparent">
-              Dashboard Overview
-            </h2>
+          {/* Compact Stats Bar on the Right */}
+          <div className="flex-1">
+            <StatsBar />
           </div>
-        </div>
-
-        <div className="mb-8">
-          <StatsBar />
         </div>
 
         <div className="flex flex-col gap-6 xl:flex-row">
