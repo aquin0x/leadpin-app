@@ -12,8 +12,9 @@ export interface ScrapeParams {
 export class ScraperService {
   static async startScraping({ jobId, category, city, district, neighborhood }: ScrapeParams) {
     const browser = await puppeteer.launch({
-      headless: "new" as any,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+      headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'],
     });
 
     try {
