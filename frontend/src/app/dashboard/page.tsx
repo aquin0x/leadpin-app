@@ -2,7 +2,7 @@
 
 import { useState, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { MapPin, LogOut, User } from "lucide-react"
+import { MapPin, LogOut, User, LayoutDashboard, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatsBar } from "@/components/dashboard/StatsBar"
 import { FilterBar } from "@/components/dashboard/FilterBar"
@@ -133,7 +133,44 @@ function DashboardContent() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-[1600px] p-4">
-        <div className="mb-6">
+        {/* Navigation Bar */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2 bg-zinc-900/50 p-1.5 rounded-xl border border-zinc-800/50 backdrop-blur-sm">
+            <Button
+              variant="ghost"
+              className="text-zinc-400 hover:text-white hover:bg-zinc-800 h-10 px-6 rounded-lg font-medium"
+              asChild
+            >
+              <a href="/dashboard">
+                <LayoutDashboard className="mr-2 size-4" />
+                Ana Menü
+              </a>
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-zinc-400 hover:text-white hover:bg-zinc-800 h-10 px-6 rounded-lg font-medium"
+            >
+              <List className="mr-2 size-4" />
+              Listeler
+            </Button>
+            <div className="w-px h-6 bg-zinc-800 mx-2" />
+            <Button
+              onClick={() => setScrapeModalOpen(true)}
+              className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 h-10 px-6 rounded-lg font-semibold"
+            >
+              <MapPin className="mr-2 size-4" />
+              Yeni Tarama Oluştur
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-zinc-100 to-zinc-500 bg-clip-text text-transparent">
+              Dashboard Overview
+            </h2>
+          </div>
+        </div>
+
+        <div className="mb-8">
           <StatsBar />
         </div>
 
@@ -145,21 +182,7 @@ function DashboardContent() {
           </div>
 
           {/* Table Area */}
-          <div className="flex-1 min-w-0 flex flex-col gap-4">
-            <div className="flex items-center justify-between bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/50 backdrop-blur-sm">
-              <div className="flex flex-col">
-                <h2 className="text-lg font-semibold text-zinc-100">İşletme Listesi</h2>
-                <p className="text-xs text-zinc-500">Bulunan tüm potansiyel müşterileri buradan yönetebilirsiniz.</p>
-              </div>
-              <Button
-                onClick={() => setScrapeModalOpen(true)}
-                className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 px-6"
-              >
-                <MapPin className="mr-2 size-4" />
-                Yeni Tarama Başlat
-              </Button>
-            </div>
-
+          <div className="flex-1 min-w-0">
             <LeadTable
               data={data}
               isLoading={isLoading}
