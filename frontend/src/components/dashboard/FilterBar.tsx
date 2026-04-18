@@ -1,8 +1,10 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { useCallback } from "react"
-import { Search, X, ScanSearch, Trash2 } from "lucide-react"
+import { Search, X, ScanSearch, Trash2, Filter } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
@@ -21,6 +23,50 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
   const router = useRouter()
   const pathname = usePathname()
 
+  // Local state for filters to avoid triggering on every keystroke
+  const [localFilters, setLocalFilters] = useState({
+    city: searchParams.get("city") || "",
+    district: searchParams.get("district") || "",
+    neighborhood: searchParams.get("neighborhood") || "",
+    category: searchParams.get("category") || "",
+    hasEmail: searchParams.get("hasEmail") === "true",
+    hasWebsite: searchParams.get("hasWebsite") === "true",
+    hasPhone: searchParams.get("hasPhone") === "true",
+    minRating: searchParams.get("minRating") || "",
+    minReviews: searchParams.get("minReviews") || "",
+  })
+
+  // Sync with URL when URL changes (e.g. from clear filters or back button)
+  useEffect(() => {
+    setLocalFilters({
+      city: searchParams.get("city") || "",
+      district: searchParams.get("district") || "",
+      neighborhood: searchParams.get("neighborhood") || "",
+      category: searchParams.get("category") || "",
+      hasEmail: searchParams.get("hasEmail") === "true",
+      hasWebsite: searchParams.get("hasWebsite") === "true",
+      hasPhone: searchParams.get("hasPhone") === "true",
+      minRating: searchParams.get("minRating") || "",
+      minReviews: searchParams.get("minReviews") || "",
+    })
+  }, [searchParams])
+
+  const handleApplyFilters = useCallback(() => {
+    const params = new URLSearchParams()
+    
+    // Preserve pagination if needed, or reset to 1 (usually best when filtering)
+    // params.set("page", "1")
+
+    Object.entries(localFilters).forEach(([key, value]) => {
+      if (value !== "" && value !== false && value !== null) {
+        params.set(key, String(value))
+      }
+    })
+
+    router.push(`${pathname}?${params.toString()}`)
+    toast.success("Filtreler uygulandı", { duration: 1500, icon: '🔍' })
+  }, [localFilters, router, pathname])
+
   const handleClearData = async () => {
     if (!confirm("Tüm tarama verilerini, işletmeleri ve logları silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
       return
@@ -36,42 +82,48 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     }
   }
 
-  const city = searchParams.get("city") || ""
-  const district = searchParams.get("district") || ""
-  const neighborhood = searchParams.get("neighborhood") || ""
-  const category = searchParams.get("category") || ""
-  const hasEmail = searchParams.get("hasEmail") === "true"
-  const hasWebsite = searchParams.get("hasWebsite") === "true"
-  const hasPhone = searchParams.get("hasPhone") === "true"
-  const minRating = searchParams.get("minRating") || ""
-  const minReviews = searchParams.get("minReviews") || ""
-
-  const updateParams = useCallback(
-    (key: string, value: string | boolean | null) => {
-      const params = new URLSearchParams(searchParams.toString())
-      if (value === null || value === "" || value === false) {
-        params.delete(key)
-      } else {
-        params.set(key, String(value))
-      }
-      params.delete("page")
-      router.push(`${pathname}?${params.toString()}`)
-    },
-    [searchParams, router, pathname]
-  )
-
   const clearFilters = useCallback(() => {
     router.push(pathname)
   }, [router, pathname])
 
-  const hasActiveFilters = city || district || neighborhood || category || hasEmail || hasWebsite || hasPhone || minRating || minReviews
+  const hasChanges = 
+    localFilters.city !== (searchParams.get("city") || "") ||
+    localFilters.district !== (searchParams.get("district") || "") ||
+    localFilters.neighborhood !== (searchParams.get("neighborhood") || "") ||
+    localFilters.category !== (searchParams.get("category") || "") ||
+    localFilters.hasEmail !== (searchParams.get("hasEmail") === "true") ||
+    localFilters.hasWebsite !== (searchParams.get("hasWebsite") === "true") ||
+    localFilters.hasPhone !== (searchParams.get("hasPhone") === "true") ||
+    localFilters.minRating !== (searchParams.get("minRating") || "") ||
+    localFilters.minReviews !== (searchParams.get("minReviews") || "")
+
+  const hasActiveFilters = 
+    searchParams.get("city") || 
+    searchParams.get("district") || 
+    searchParams.get("neighborhood") || 
+    searchParams.get("category") || 
+    searchParams.get("hasEmail") === "true" || 
+    searchParams.get("hasWebsite") === "true" || 
+    searchParams.get("hasPhone") === "true" || 
+    searchParams.get("minRating") || 
+    searchParams.get("minReviews")
 
   return (
     <aside className="flex w-full flex-col gap-5 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 backdrop-blur-sm xl:w-[320px]">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-300 uppercase tracking-wider">
-        <Search className="size-4 text-zinc-500" />
-        Filtreler
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-300 uppercase tracking-wider">
+          <Search className="size-4 text-zinc-500" />
+          Filtreler
+        </h3>
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors uppercase font-bold"
+          >
+            Temizle
+          </button>
+        )}
+      </div>
 
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4">
@@ -82,8 +134,9 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
             <Input
               id="filter-city"
               placeholder="İstanbul..."
-              value={city}
-              onChange={(e) => updateParams("city", e.target.value)}
+              value={localFilters.city}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, city: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
               className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
             />
           </div>
@@ -95,8 +148,9 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
             <Input
               id="filter-district"
               placeholder="Maltepe..."
-              value={district}
-              onChange={(e) => updateParams("district", e.target.value)}
+              value={localFilters.district}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, district: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
               className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
             />
           </div>
@@ -109,8 +163,9 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
           <Input
             id="filter-hood"
             placeholder="Altayçeşme..."
-            value={neighborhood}
-            onChange={(e) => updateParams("neighborhood", e.target.value)}
+            value={localFilters.neighborhood}
+            onChange={(e) => setLocalFilters(prev => ({ ...prev, neighborhood: e.target.value }))}
+            onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
             className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
           />
         </div>
@@ -122,8 +177,9 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
           <Input
             id="filter-category"
             placeholder="Kafe, Restoran..."
-            value={category}
-            onChange={(e) => updateParams("category", e.target.value)}
+            value={localFilters.category}
+            onChange={(e) => setLocalFilters(prev => ({ ...prev, category: e.target.value }))}
+            onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
             className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
           />
         </div>
@@ -138,8 +194,9 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
               type="number"
               step="0.1"
               placeholder="0.0"
-              value={minRating}
-              onChange={(e) => updateParams("minRating", e.target.value)}
+              value={localFilters.minRating}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, minRating: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
               className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
             />
           </div>
@@ -151,8 +208,9 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
               id="filter-min-reviews"
               type="number"
               placeholder="0"
-              value={minReviews}
-              onChange={(e) => updateParams("minReviews", e.target.value)}
+              value={localFilters.minReviews}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, minReviews: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
               className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
             />
           </div>
@@ -167,8 +225,8 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
             </Label>
             <Switch
               id="filter-email"
-              checked={hasEmail}
-              onCheckedChange={(checked) => updateParams("hasEmail", checked)}
+              checked={localFilters.hasEmail}
+              onCheckedChange={(checked) => setLocalFilters(prev => ({ ...prev, hasEmail: checked }))}
             />
           </div>
 
@@ -178,8 +236,8 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
             </Label>
             <Switch
               id="filter-website"
-              checked={hasWebsite}
-              onCheckedChange={(checked) => updateParams("hasWebsite", checked)}
+              checked={localFilters.hasWebsite}
+              onCheckedChange={(checked) => setLocalFilters(prev => ({ ...prev, hasWebsite: checked }))}
             />
           </div>
 
@@ -189,44 +247,48 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
             </Label>
             <Switch
               id="filter-phone"
-              checked={hasPhone}
-              onCheckedChange={(checked) => updateParams("hasPhone", checked)}
+              checked={localFilters.hasPhone}
+              onCheckedChange={(checked) => setLocalFilters(prev => ({ ...prev, hasPhone: checked }))}
             />
           </div>
         </div>
       </div>
 
-      {hasActiveFilters && (
+      <div className="space-y-3 pt-2">
         <Button
-          variant="ghost"
-          size="sm"
-          onClick={clearFilters}
-          className="w-full text-zinc-400 hover:text-zinc-200"
+          onClick={handleApplyFilters}
+          disabled={!hasChanges}
+          className={cn(
+            "w-full transition-all duration-300",
+            hasChanges 
+              ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20" 
+              : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+          )}
         >
-          <X className="mr-1 size-3.5" />
-          Filtreleri Temizle
-        </Button>
-      )}
-
-      <Separator className="bg-zinc-800" />
-
-      <div className="space-y-2">
-        <Button
-          onClick={handleClearData}
-          variant="outline"
-          className="w-full border-red-900/50 bg-red-900/10 text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-colors"
-        >
-          <Trash2 className="mr-2 size-4" />
-          Verileri Sıfırla
+          <Filter className="mr-2 size-4" />
+          Filtreleri Uygula
         </Button>
 
-        <Button
-          onClick={onOpenScrapeModal}
-          className="w-full bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
-        >
-          <ScanSearch className="mr-2 size-4" />
-          Yeni Tarama Başlat
-        </Button>
+        <Separator className="bg-zinc-800" />
+
+        <div className="grid grid-cols-1 gap-2">
+          <Button
+            onClick={onOpenScrapeModal}
+            className="w-full bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
+          >
+            <ScanSearch className="mr-2 size-4" />
+            Yeni Tarama Başlat
+          </Button>
+
+          <Button
+            onClick={handleClearData}
+            variant="ghost"
+            className="w-full text-zinc-500 hover:text-red-400 hover:bg-red-400/5 transition-colors"
+          >
+            <Trash2 className="mr-2 size-3.5" />
+            Verileri Sıfırla
+          </Button>
+        </div>
       </div>
     </aside>
   )
