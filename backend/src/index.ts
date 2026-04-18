@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { getBusinesses, getBusiness, getStats, startScrape, getScrapeJob, getScrapeJobs, deleteScrapeJob, stopScrapeJob, logOutreach } from './controllers/business.controller';
+import { getLists, createList, addItemsToList, deleteList } from './controllers/list.controller';
 import { authMiddleware } from './middleware/auth';
 import { supabase } from './utils/supabase';
 
@@ -31,6 +32,12 @@ app.post('/api/admin/clear-data', authMiddleware, (req, res) => {
   const { clearAllData } = require('./controllers/business.controller');
   return clearAllData(req, res);
 });
+
+// List Management Routes
+app.get('/api/lists', authMiddleware, getLists);
+app.post('/api/lists', authMiddleware, createList);
+app.post('/api/lists/:listId/items', authMiddleware, addItemsToList);
+app.delete('/api/lists/:id', authMiddleware, deleteList);
 
 // SSE for Scrape Status Updates (EventSource always uses GET)
 app.get('/api/scrape/:id/stream', authMiddleware, (req, res) => {

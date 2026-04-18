@@ -29,7 +29,6 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     district: searchParams.get("district") || "",
     neighborhood: searchParams.get("neighborhood") || "",
     category: searchParams.get("category") || "",
-    hasEmail: searchParams.get("hasEmail") === "true",
     hasWebsite: searchParams.get("hasWebsite") === "true",
     hasPhone: searchParams.get("hasPhone") === "true",
     minRating: searchParams.get("minRating") || "",
@@ -43,7 +42,6 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
       district: searchParams.get("district") || "",
       neighborhood: searchParams.get("neighborhood") || "",
       category: searchParams.get("category") || "",
-      hasEmail: searchParams.get("hasEmail") === "true",
       hasWebsite: searchParams.get("hasWebsite") === "true",
       hasPhone: searchParams.get("hasPhone") === "true",
       minRating: searchParams.get("minRating") || "",
@@ -91,7 +89,6 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     localFilters.district !== (searchParams.get("district") || "") ||
     localFilters.neighborhood !== (searchParams.get("neighborhood") || "") ||
     localFilters.category !== (searchParams.get("category") || "") ||
-    localFilters.hasEmail !== (searchParams.get("hasEmail") === "true") ||
     localFilters.hasWebsite !== (searchParams.get("hasWebsite") === "true") ||
     localFilters.hasPhone !== (searchParams.get("hasPhone") === "true") ||
     localFilters.minRating !== (searchParams.get("minRating") || "") ||
@@ -102,7 +99,6 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     searchParams.get("district") || 
     searchParams.get("neighborhood") || 
     searchParams.get("category") || 
-    searchParams.get("hasEmail") === "true" || 
     searchParams.get("hasWebsite") === "true" || 
     searchParams.get("hasPhone") === "true" || 
     searchParams.get("minRating") || 
@@ -219,16 +215,6 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
         <Separator className="bg-zinc-800/50" />
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="filter-email" className="text-sm text-zinc-400">
-              E-posta Var
-            </Label>
-            <Switch
-              id="filter-email"
-              checked={localFilters.hasEmail}
-              onCheckedChange={(checked) => setLocalFilters(prev => ({ ...prev, hasEmail: checked }))}
-            />
-          </div>
 
           <div className="flex items-center justify-between">
             <Label htmlFor="filter-website" className="text-sm text-zinc-400">

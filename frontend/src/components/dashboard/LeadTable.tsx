@@ -9,6 +9,8 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  ListPlus,
+  Check,
 } from "lucide-react"
 import {
   Table,
@@ -19,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -39,6 +42,7 @@ import { generateMessages } from "@/lib/message-generator"
 import { useWhatsAppOutreach } from "@/hooks/useOutreach"
 import type { Business, PaginatedBusinesses } from "@/types"
 import toast from "react-hot-toast"
+import { cn } from "@/lib/utils"
 
 interface LeadTableProps {
   data: PaginatedBusinesses | undefined
@@ -130,6 +134,8 @@ export function LeadTable({
   onLimitChange,
   onSort,
 }: LeadTableProps) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -162,6 +168,22 @@ export function LeadTable({
   const startIndex = (page - 1) * limit + 1
   const endIndex = Math.min(page * limit, data.total)
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(data.data.map((b) => b.id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const toggleSelect = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds((prev) => [...prev, id])
+    } else {
+      setSelectedIds((prev) => prev.filter((i) => i !== id))
+    }
+  }
+
   const SortIcon = ({ field }: { field: string }) => {
     if (sortBy !== field) return <div className="ml-1 size-3 opacity-20" />
     return sortOrder === "asc" ? (
@@ -172,11 +194,18 @@ export function LeadTable({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-sm overflow-x-auto">
         <Table className="table-fixed min-w-[1200px] w-full">
           <TableHeader>
             <TableRow className="border-zinc-800 hover:bg-transparent">
+              <TableHead className="w-[45px] px-4">
+                <Checkbox 
+                  checked={selectedIds.length === data.data.length && data.data.length > 0}
+                  onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                  className="border-zinc-700 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                />
+              </TableHead>
               <TableHead 
                 className="w-[200px] text-zinc-400 cursor-pointer hover:text-zinc-200"
                 onClick={() => onSort("name")}
@@ -194,7 +223,6 @@ export function LeadTable({
               <TableHead className="w-[140px] text-zinc-400">Mahalle</TableHead>
               <TableHead className="w-[140px] text-zinc-400">Telefon</TableHead>
               <TableHead className="w-[60px] text-zinc-400 text-center">Web</TableHead>
-              <TableHead className="w-[60px] text-zinc-400 text-center">E-posta</TableHead>
               <TableHead 
                 className="w-[85px] text-zinc-400 text-center cursor-pointer hover:text-zinc-200"
                 onClick={() => onSort("rating")}
@@ -212,14 +240,24 @@ export function LeadTable({
           </TableHeader>
           <TableBody>
             {data.data.map((business) => {
-              const hasEmail = business.contacts?.some((c) => c.email)
               const hasWebsite = !!business.website
+              const isSelected = selectedIds.includes(business.id)
               
               return (
                 <TableRow
                   key={business.id}
-                  className="border-zinc-800/50 transition-colors duration-150 hover:bg-zinc-800/30"
+                  className={cn(
+                    "border-zinc-800/50 transition-colors duration-150",
+                    isSelected ? "bg-blue-500/5" : "hover:bg-zinc-800/30"
+                  )}
                 >
+                  <TableCell className="px-4">
+                    <Checkbox 
+                      checked={isSelected}
+                      onCheckedChange={(checked) => toggleSelect(business.id, !!checked)}
+                      className="border-zinc-700 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    />
+                  </TableCell>
                   <TableCell className="truncate">
                     <Link
                       href={`/businesses/${business.id}`}
@@ -241,13 +279,6 @@ export function LeadTable({
                   <TableCell className="text-center">
                     {hasWebsite ? (
                       <Globe className="mx-auto size-4 text-emerald-400" />
-                    ) : (
-                      <span className="text-zinc-600">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {hasEmail ? (
-                      <Mail className="mx-auto size-4 text-emerald-400" />
                     ) : (
                       <span className="text-zinc-600">—</span>
                     )}
@@ -280,6 +311,39 @@ export function LeadTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Floating Selection Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-4 rounded-full border border-blue-500/50 bg-zinc-900/90 px-6 py-3 shadow-2xl shadow-blue-500/20 backdrop-blur-md">
+            <span className="text-sm font-semibold text-blue-400">
+              {selectedIds.length} işletme seçildi
+            </span>
+            <div className="h-4 w-px bg-zinc-800" />
+            <Button
+              size="sm"
+              className="h-8 bg-blue-600 text-white hover:bg-blue-500 gap-1.5 rounded-full px-4"
+              onClick={() => {
+                toast.success(`${selectedIds.length} işletme listeye kaydedilmeye hazır!`, {
+                  icon: '📂',
+                  duration: 3000
+                });
+              }}
+            >
+              <ListPlus className="size-3.5" />
+              Listeye Kaydet
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-zinc-400 hover:text-white rounded-full"
+              onClick={() => setSelectedIds([])}
+            >
+              İptal
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
