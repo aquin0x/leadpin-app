@@ -273,20 +273,12 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
 
         <div className="grid grid-cols-1 gap-2">
           <Button
-            onClick={onOpenScrapeModal}
-            className="w-full bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
-          >
-            <ScanSearch className="mr-2 size-4" />
-            Yeni Tarama Başlat
-          </Button>
-
-          <Button
             onClick={handleClearData}
             variant="ghost"
-            className="w-full text-zinc-500 hover:text-red-400 hover:bg-red-400/5 transition-colors"
+            className="w-full text-zinc-500 hover:text-red-400 hover:bg-red-400/5 transition-colors text-xs font-medium"
           >
             <Trash2 className="mr-2 size-3.5" />
-            Verileri Sıfırla
+            Tüm Verileri Sıfırla
           </Button>
         </div>
       </div>

@@ -138,12 +138,28 @@ function DashboardContent() {
         </div>
 
         <div className="flex flex-col gap-6 xl:flex-row">
-          <div className="flex w-full flex-col gap-6 xl:w-[320px]">
+          {/* Sidebar */}
+          <div className="flex w-full flex-col gap-6 xl:w-[300px] shrink-0">
             <FilterBar onOpenScrapeModal={() => setScrapeModalOpen(true)} />
             <ScrapeHistory />
           </div>
 
-          <div className="flex-1 min-w-0">
+          {/* Table Area */}
+          <div className="flex-1 min-w-0 flex flex-col gap-4">
+            <div className="flex items-center justify-between bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/50 backdrop-blur-sm">
+              <div className="flex flex-col">
+                <h2 className="text-lg font-semibold text-zinc-100">İşletme Listesi</h2>
+                <p className="text-xs text-zinc-500">Bulunan tüm potansiyel müşterileri buradan yönetebilirsiniz.</p>
+              </div>
+              <Button
+                onClick={() => setScrapeModalOpen(true)}
+                className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 px-6"
+              >
+                <MapPin className="mr-2 size-4" />
+                Yeni Tarama Başlat
+              </Button>
+            </div>
+
             <LeadTable
               data={data}
               isLoading={isLoading}
