@@ -36,7 +36,7 @@ export interface OutreachLog {
 
 export interface ScrapeJob {
   id: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped'
   current_lead: number
   total_leads: number
   city: string

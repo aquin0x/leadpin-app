@@ -137,6 +137,10 @@ export function ScrapeHistory() {
                   <span className="text-red-900/70 truncate text-[10px] mt-1">
                     {job.error_message || "Hata oluştu"}
                   </span>
+                ) : job.status === 'stopped' ? (
+                  <span className="text-zinc-500 font-medium text-[10px] mt-1">
+                    Tarama durduruldu
+                  </span>
                 ) : (
                   <span>Sırada bekleniyor...</span>
                 )}
@@ -157,6 +161,8 @@ function StatusIcon({ status }: { status: string }) {
       return <XCircle className="size-3.5 text-red-500" />
     case "running":
       return <Loader2 className="size-3.5 animate-spin text-blue-500" />
+    case "stopped":
+      return <StopCircle className="size-3.5 text-zinc-500" />
     default:
       return <Clock className="size-3.5 text-zinc-500" />
   }

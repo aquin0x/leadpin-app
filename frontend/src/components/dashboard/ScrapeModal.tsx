@@ -128,9 +128,9 @@ export function ScrapeModal({ open, onOpenChange, onComplete }: ScrapeModalProps
     onComplete()
   }
 
-  const isRunning = jobId !== null && job?.status !== "completed" && job?.status !== "failed"
+  const isRunning = jobId !== null && job?.status !== "completed" && job?.status !== "failed" && job?.status !== "stopped"
   const isDone = job?.status === "completed"
-  const isFailed = job?.status === "failed"
+  const isFailed = job?.status === "failed" || job?.status === "stopped"
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
