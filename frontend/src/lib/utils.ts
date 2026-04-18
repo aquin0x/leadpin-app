@@ -27,11 +27,11 @@ export function formatPhone(phone: string | undefined | null): string {
   return phone.startsWith("+") ? phone : `+${phone}`
 }
 
-export function formatRating(rating: number | undefined | null, reviewCount?: number | null): string {
+export function formatRating(rating: number | undefined | null, reviews_count?: number | null): string {
   if (rating == null) return "—"
   const stars = `⭐ ${rating.toFixed(1)}`
-  if (reviewCount != null) {
-    return `${stars} (${reviewCount})`
+  if (reviews_count != null) {
+    return `${stars} (${reviews_count})`
   }
   return stars
 }

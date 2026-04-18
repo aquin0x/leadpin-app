@@ -79,9 +79,9 @@ export function BusinessInfoCard({ business }: BusinessInfoCardProps) {
               <span className="text-sm font-semibold">
                 {business.rating.toFixed(1)}
               </span>
-              {business.reviewCount != null && (
+              {business.reviews_count != null && (
                 <span className="text-xs text-amber-400/70">
-                  ({business.reviewCount})
+                  ({business.reviews_count})
                 </span>
               )}
             </Badge>
