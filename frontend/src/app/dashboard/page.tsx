@@ -136,70 +136,109 @@ function DashboardContent() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-[1800px] px-6 py-6 md:px-8">
-        {/* Top Header Section: Navigation + Stats */}
-        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
-          {/* Vertical Navigation Column */}
-          <div className="flex w-full flex-col gap-1.5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-2 backdrop-blur-sm lg:w-[240px] shrink-0">
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentView("main")}
-              className={cn(
-                "justify-start h-11 px-4 rounded-xl font-medium transition-colors",
-                currentView === "main" ? "bg-blue-500/10 text-blue-400" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
-              )}
-            >
-              <LayoutDashboard className="mr-3 size-5" />
-              Tüm Leads
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentView("lists")}
-              className={cn(
-                "justify-start h-11 px-4 rounded-xl font-medium transition-colors",
-                currentView === "lists" ? "bg-blue-500/10 text-blue-400" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
-              )}
-            >
-              <List className="mr-3 size-5" />
-              Listeler
-            </Button>
-            <div className="my-1 h-px bg-zinc-800/50" />
-            <Button
-              onClick={() => setScrapeModalOpen(true)}
-              className="justify-start bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 h-11 px-4 rounded-xl font-semibold transition-all duration-300 active:scale-95"
-            >
-              <Target className="mr-3 size-5" />
-              Yeni Tarama Başlat
-            </Button>
-          </div>
+        {currentView === "main" ? (
+          <>
+            {/* Top Header Section: Navigation + Stats */}
+            <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
+              {/* Vertical Navigation Column */}
+              <div className="flex w-full flex-col gap-1.5 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-2 backdrop-blur-sm lg:w-[240px] shrink-0">
+                <Button
+                  variant="ghost"
+                  onClick={() => setCurrentView("main")}
+                  className={cn(
+                    "justify-start h-11 px-4 rounded-xl font-medium transition-all group",
+                    currentView === "main" ? "bg-blue-500/10 text-blue-400" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
+                  )}
+                >
+                  <LayoutDashboard className={cn("mr-3 size-5", currentView === "main" ? "text-blue-400" : "text-zinc-500 group-hover:text-zinc-300")} />
+                  Tüm Leads
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setCurrentView("lists")}
+                  className={cn(
+                    "justify-start h-11 px-4 rounded-xl font-medium transition-all group",
+                    currentView === "lists" ? "bg-blue-500/10 text-blue-400" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
+                  )}
+                >
+                  <List className={cn("mr-3 size-5", currentView === "lists" ? "text-blue-400" : "text-zinc-500 group-hover:text-zinc-300")} />
+                  Listeler
+                </Button>
+                <div className="my-1 h-px bg-zinc-800/50" />
+                <Button
+                  onClick={() => setScrapeModalOpen(true)}
+                  className="justify-start bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 h-11 px-4 rounded-xl font-semibold transition-all duration-300 active:scale-95"
+                >
+                  <Target className="mr-3 size-5" />
+                  Yeni Tarama Başlat
+                </Button>
+              </div>
 
-          {/* Compact Stats Bar on the Right */}
-          <div className="flex-1">
-            <StatsBar />
-          </div>
-        </div>
+              {/* Compact Stats Bar on the Right */}
+              <div className="flex-1">
+                <StatsBar />
+              </div>
+            </div>
 
-        <div className="flex flex-col gap-6 xl:flex-row">
-          {/* Sidebar */}
-          <div className="flex w-full flex-col gap-6 xl:w-[300px] shrink-0">
-            <FilterBar onOpenScrapeModal={() => setScrapeModalOpen(true)} />
-            <ScrapeHistory />
-          </div>
+            <div className="flex flex-col gap-6 xl:flex-row">
+              {/* Sidebar */}
+              <div className="flex w-full flex-col gap-6 xl:w-[300px] shrink-0">
+                <FilterBar onOpenScrapeModal={() => setScrapeModalOpen(true)} />
+                <ScrapeHistory />
+              </div>
 
-          {/* Table Area */}
-          <div className="flex-1 min-w-0">
-            <LeadTable
-              data={data}
-              isLoading={isLoading}
-              page={page}
-              limit={limit}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onPageChange={handlePageChange}
-              onLimitChange={handleLimitChange}
-              onSort={handleSort}
-            />
+              {/* Table Area */}
+              <div className="flex-1 min-w-0">
+                <LeadTable
+                  data={data}
+                  isLoading={isLoading}
+                  page={page}
+                  limit={limit}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onPageChange={handlePageChange}
+                  onLimitChange={handleLimitChange}
+                  onSort={handleSort}
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-5">
+                <div className="flex size-16 items-center justify-center rounded-[24px] bg-blue-500/10 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
+                  <List className="size-8 text-blue-400" />
+                </div>
+                <div>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white">Listelerim</h2>
+                  <p className="font-medium text-zinc-500">Kayıtlı işletme koleksiyonlarınız</p>
+                </div>
+              </div>
+              
+              <Button
+                variant="outline"
+                onClick={() => setCurrentView("main")}
+                className="border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl"
+              >
+                <LayoutDashboard className="mr-2 size-4" />
+                Tabloya Dön
+              </Button>
+            </div>
+            
+            <div className="rounded-[32px] border border-zinc-800 bg-zinc-900/40 p-1 backdrop-blur-xl">
+              <div className="rounded-[31px] bg-zinc-950/50 p-8">
+                <SavedLists 
+                  onSelectList={(id, name) => {
+                    setSelectedList({ id, name })
+                    // Future: implement list detail view
+                    toast.success(`${name} listesi seçildi`)
+                  }} 
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </main>
 
       <ScrapeModal
