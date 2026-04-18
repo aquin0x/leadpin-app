@@ -1,7 +1,7 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, MapPin } from "lucide-react"
+import { ArrowLeft, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BusinessInfoCard } from "@/components/business/BusinessInfoCard"
