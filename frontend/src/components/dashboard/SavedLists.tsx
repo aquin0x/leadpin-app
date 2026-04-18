@@ -4,20 +4,13 @@ import { useState, useEffect } from "react"
 import { api } from "@/lib/api-client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { 
+import {
   FolderOpen, 
   Trash2, 
-  MoreVertical, 
   ChevronRight,
   Loader2,
   Inbox
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/dropdown-menu"
 import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
 
@@ -51,8 +44,7 @@ export function SavedLists({ onSelectList }: { onSelectList: (id: string, name: 
     fetchLists()
   }, [])
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
+  const handleDelete = async (id: string) => {
     if (!confirm("Bu listeyi silmek istediğinize emin misiniz?")) return
 
     try {
@@ -93,16 +85,15 @@ export function SavedLists({ onSelectList }: { onSelectList: (id: string, name: 
         return (
           <Card 
             key={list.id}
-            className="group cursor-pointer border-zinc-800 bg-zinc-900/40 transition-all hover:border-blue-500/50 hover:bg-zinc-900/60"
-            onClick={() => onSelectList(list.id, list.name)}
+            className="group/list border-zinc-800 bg-zinc-900/40 transition-all hover:border-blue-500/50 hover:bg-zinc-900/60"
           >
             <CardHeader className="flex flex-row items-start justify-between space-y-0 p-5 pb-2">
               <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-blue-500/10 shadow-lg shadow-blue-500/5 group-hover:bg-blue-500/20">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-blue-500/10 shadow-lg shadow-blue-500/5 group-hover/list:bg-blue-500/20">
                   <FolderOpen className="size-5 text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-zinc-100 group-hover:text-white line-clamp-1">
+                  <h3 className="font-bold text-zinc-100 group-hover/list:text-white line-clamp-1">
                     {list.name}
                   </h3>
                   <p className="text-xs text-zinc-500">
@@ -110,26 +101,42 @@ export function SavedLists({ onSelectList }: { onSelectList: (id: string, name: 
                   </p>
                 </div>
               </div>
-              <button
-                onClick={(e) => handleDelete(e, list.id)}
-                className="rounded-lg p-1 text-zinc-600 hover:bg-red-500/10 hover:text-red-400"
-              >
-                <Trash2 className="size-4" />
-              </button>
             </CardHeader>
             <CardContent className="p-5 pt-4">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-2xl font-black italic text-zinc-100 italic">
+                  <span className="text-2xl font-black italic text-zinc-100">
                     {count}
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                     İşletme
                   </span>
                 </div>
-                <div className="flex size-8 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 opacity-0 transition-all group-hover:opacity-100">
-                  <ChevronRight className="size-4" />
+                <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover/list:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelectList(list.id, list.name)
+                    }}
+                    className="size-8 text-zinc-400 hover:bg-blue-500/10 hover:text-blue-400 rounded-lg"
+                  >
+                    <FolderOpen className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDelete(list.id)
+                    }}
+                    className="size-8 text-zinc-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
                 </div>
+                <ChevronRight className="size-4 text-zinc-700 transition-transform group-hover/list:translate-x-0.5" />
               </div>
             </CardContent>
           </Card>
