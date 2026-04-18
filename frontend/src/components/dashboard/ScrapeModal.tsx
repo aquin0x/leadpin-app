@@ -58,7 +58,8 @@ export function ScrapeModal({ open, onOpenChange, onComplete }: ScrapeModalProps
       .finally(() => setIsLoadingProvinces(false))
   }, [open])
 
-  const handleCityChange = (val: string) => {
+  const handleCityChange = (val: string | null) => {
+    if (!val) return
     setCity(val)
     setDistrict("")
     setNeighborhood("")
@@ -75,7 +76,8 @@ export function ScrapeModal({ open, onOpenChange, onComplete }: ScrapeModalProps
     }
   }
 
-  const handleDistrictChange = (val: string) => {
+  const handleDistrictChange = (val: string | null) => {
+    if (!val) return
     setDistrict(val)
     setNeighborhood("")
     setNeighborhoods([])
