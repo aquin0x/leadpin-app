@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "LeadSpin — İşletme Bulucu",
+  title: "LeadPin — İşletme Bulucu",
   description:
     "Google Haritalar üzerinden işletmeleri tarayın, hedef kitlenizi bulun ve otomatik mesajlarla satışlarınızı artırın.",
 }

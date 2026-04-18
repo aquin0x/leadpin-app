@@ -10,6 +10,11 @@ export const getLists = async (req: Request, res: Response) => {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
+    console.log(`[getLists] Fetched ${data?.length || 0} lists for user: ${userId}`);
+    if (data && data.length > 0) {
+      console.log(`[getLists] First list structure sample:`, JSON.stringify(data[0], null, 2));
+    }
+
     if (error) throw error;
     res.json(data);
   } catch (error: any) {

@@ -34,8 +34,10 @@ export const getBusinesses = async (req: Request, res: Response) => {
   if (district) query = query.ilike('district', `%${district}%`);
   if (neighborhood) query = query.ilike('neighborhood', `%${neighborhood}%`);
   if (category) {
-    const firstCategory = String(category).split(',')[0].trim();
-    query = query.ilike('category', `%${firstCategory}%`);
+    const cats = String(category).split(',').map(c => c.trim()).filter(Boolean);
+    if (cats.length > 0) {
+      query = query.ilike('category', `%${cats[0]}%`);
+    }
   }
   
   if (hasEmail === 'true') query = query.not('email', 'is', null).neq('email', '');

@@ -108,7 +108,7 @@ function DashboardContent() {
               <Target className="size-5 text-blue-400 rotate-12 transition-transform group-hover:rotate-0" />
             </div>
             <h1 className="text-xl font-black tracking-tight text-white italic uppercase bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-              LeadSpin
+              LeadPin
             </h1>
           </div>
 

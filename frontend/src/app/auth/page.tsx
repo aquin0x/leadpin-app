@@ -82,7 +82,7 @@ export default function AuthPage() {
           </div>
           <div>
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-              LeadSpin
+              LeadPin
             </h1>
             <p className="mt-2 text-sm text-zinc-400">
               İşletmeleri keşfedin, hedefleyin, kazanın
