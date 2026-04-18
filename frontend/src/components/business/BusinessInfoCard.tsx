@@ -131,8 +131,8 @@ export function BusinessInfoCard({ business }: BusinessInfoCardProps) {
           ))}
         </div>
 
-        {business.mapsUrl && (
-          <a href={business.mapsUrl} target="_blank" rel="noopener noreferrer">
+        {business.google_maps_url && (
+          <a href={business.google_maps_url} target="_blank" rel="noopener noreferrer">
             <Button
               variant="outline"
               className="w-full border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800"
