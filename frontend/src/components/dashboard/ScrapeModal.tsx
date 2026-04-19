@@ -23,6 +23,12 @@ import { startScrape } from "@/lib/api-client"
 import { useScrapeJob } from "@/hooks/useScrapeJob"
 import toast from "react-hot-toast"
 
+// Turkish locale, numeric-aware sort — orders "1. Mahalle", "2. Mahalle", "10. Mahalle"
+// naturally, and handles Turkish chars (ç, ğ, ı, ö, ş, ü) correctly.
+const trCollator = new Intl.Collator('tr', { numeric: true, sensitivity: 'base' });
+const sortByName = <T extends { name?: string }>(arr: T[]): T[] =>
+  [...arr].sort((a, b) => trCollator.compare(a.name || '', b.name || ''));
+
 interface ScrapeModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -53,7 +59,7 @@ export function ScrapeModal({ open, onOpenChange, onComplete }: ScrapeModalProps
     setIsLoadingProvinces(true)
     fetch("https://turkiyeapi.dev/api/v1/provinces")
       .then(res => res.json())
-      .then(res => setProvinces(res.data || []))
+      .then(res => setProvinces(sortByName(res.data || [])))
       .catch(() => toast.error("Şehirler yüklenirken hata oluştu"))
       .finally(() => setIsLoadingProvinces(false))
   }, [open])
@@ -71,7 +77,7 @@ export function ScrapeModal({ open, onOpenChange, onComplete }: ScrapeModalProps
       setIsLoadingDistricts(true)
       fetch(`https://turkiyeapi.dev/api/v1/provinces/${province.id}`)
         .then(res => res.json())
-        .then(res => setDistricts(res.data.districts || []))
+        .then(res => setDistricts(sortByName(res.data.districts || [])))
         .finally(() => setIsLoadingDistricts(false))
     }
   }
@@ -87,7 +93,7 @@ export function ScrapeModal({ open, onOpenChange, onComplete }: ScrapeModalProps
       setIsLoadingNeighborhoods(true)
       fetch(`https://turkiyeapi.dev/api/v1/districts/${dist.id}`)
         .then(res => res.json())
-        .then(res => setNeighborhoods(res.data.neighborhoods || []))
+        .then(res => setNeighborhoods(sortByName(res.data.neighborhoods || [])))
         .finally(() => setIsLoadingNeighborhoods(false))
     }
   }

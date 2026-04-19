@@ -5,6 +5,7 @@ import { getBusinesses, getBusiness, getStats, startScrape, getScrapeJob, getScr
 import { getLists, getListById, createList, addItemsToList, removeItemFromList, deleteList } from './controllers/list.controller';
 import { authMiddleware } from './middleware/auth';
 import { supabase } from './utils/supabase';
+import whatsappRoutes from './routes/whatsapp.routes';
 
 dotenv.config();
 
@@ -12,9 +13,6 @@ const app = express();
 const port = process.env.PORT || 4000;
 
 const allowedOrigins = [
-  'https://leadpin.frax.tr',
-  'https://leadpin.fraxlabs.com',
-  'https://map-lead-app.onrender.com',
   'http://localhost:3000',
   'http://127.0.0.1:3000'
 ];
@@ -32,7 +30,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -61,6 +59,9 @@ app.post('/api/admin/clear-data', authMiddleware, (req, res) => {
   const { clearAllData } = require('./controllers/business.controller');
   return clearAllData(req, res);
 });
+
+// WhatsApp Campaign Routes
+app.use('/api/whatsapp', whatsappRoutes);
 
 // List Management Routes
 app.get('/api/lists', authMiddleware, getLists);

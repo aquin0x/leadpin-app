@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Download, Loader2, List as ListIcon } from "lucide-react"
+import { ArrowLeft, Download, Loader2, List as ListIcon, MessageCircle } from "lucide-react"
 import * as XLSX from "xlsx"
 import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { LeadTable } from "./LeadTable"
+import { WhatsAppCampaignModal } from "./WhatsAppCampaignModal"
 import type { Business, PaginatedBusinesses } from "@/types"
 import toast from "react-hot-toast"
 
@@ -29,6 +30,7 @@ export function ListDetail({ listId, listName, onBack }: ListDetailProps) {
   const [limit, setLimit] = useState(20)
   const [sortBy, setSortBy] = useState("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [waOpen, setWaOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -142,15 +144,33 @@ export function ListDetail({ listId, listName, onBack }: ListDetailProps) {
           </div>
         </div>
 
-        <Button
-          onClick={handleExport}
-          disabled={isLoading || !list?.businesses?.length}
-          className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
-        >
-          <Download className="mr-2 size-4" />
-          Excel Olarak İndir
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setWaOpen(true)}
+            disabled={isLoading || !list?.businesses?.length}
+            className="bg-green-600 text-white hover:bg-green-500 shadow-lg shadow-green-900/20"
+          >
+            <MessageCircle className="mr-2 size-4" />
+            WhatsApp Kampanyası
+          </Button>
+          <Button
+            onClick={handleExport}
+            disabled={isLoading || !list?.businesses?.length}
+            className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
+          >
+            <Download className="mr-2 size-4" />
+            Excel Olarak İndir
+          </Button>
+        </div>
       </div>
+
+      <WhatsAppCampaignModal
+        open={waOpen}
+        onOpenChange={setWaOpen}
+        listId={listId}
+        listName={listName}
+        leadCount={list?.businesses?.length ?? 0}
+      />
 
       {isLoading ? (
         <div className="flex h-[400px] items-center justify-center">

@@ -24,3 +24,17 @@ yarn-error.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# WhatsApp session data
+.wwebjs_auth/
+.wwebjs_cache/
+**/.wwebjs_auth/
+**/.wwebjs_cache/
+gonderim_raporu.csv
+
+# Puppeteer-managed Chrome install (DLLs, exe, ~400MB)
+.cache/
+**/.cache/
+
+# Claude Code worktrees
+.claude/worktrees/

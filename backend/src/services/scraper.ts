@@ -9,6 +9,55 @@ export interface ScrapeParams {
   neighborhood?: string;
 }
 
+// Turkish-aware text normalization for address / neighborhood matching.
+// Strips Turkish diacritics, punctuation, mahalle suffixes; collapses whitespace.
+function normalizeTR(s: string): string {
+  return (s || '')
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ı/g, 'i').replace(/İ/g, 'i')
+    .replace(/ş/g, 's').replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o')
+    .replace(/\b(mahallesi|mahalle|mah\.?|mh\.?|mhl\.?)\b/gi, ' ')
+    .replace(/[.,/\\()\[\]'"`-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Common Turkish ordinal-number / word equivalences seen in neighborhood names.
+// Used to expand a query so "100. yıl" matches "yüzüncü yıl" and vice versa.
+const NUMBER_WORD_PAIRS: Array<[string, string]> = [
+  ['100', 'yuzuncu yil'],
+  ['100 yil', 'yuzuncu yil'],
+  ['50', 'ellinci yil'],
+  ['75', 'yetmis besinci yil'],
+  ['23 nisan', '23 nisan'],
+  ['29 ekim', '29 ekim'],
+  ['30 agustos', '30 agustos'],
+];
+
+function neighborhoodVariants(input: string): string[] {
+  const base = normalizeTR(input);
+  const variants = new Set<string>([base]);
+  // Strip leading "100." style prefixes and trailing "yil" noise for loose match.
+  variants.add(base.replace(/\s+/g, ''));
+  for (const [a, b] of NUMBER_WORD_PAIRS) {
+    if (base.includes(a)) variants.add(base.replace(a, b));
+    if (base.includes(b)) variants.add(base.replace(b, a));
+  }
+  return Array.from(variants).filter((v) => v.length >= 2);
+}
+
+export function addressMatchesNeighborhood(address: string, neighborhood: string): boolean {
+  if (!address || !neighborhood) return false;
+  const addr = normalizeTR(address);
+  const addrNoSpace = addr.replace(/\s+/g, '');
+  for (const v of neighborhoodVariants(neighborhood)) {
+    if (addr.includes(v)) return true;
+    if (addrNoSpace.includes(v.replace(/\s+/g, ''))) return true;
+  }
+  return false;
+}
+
 export class ScraperService {
   static async startScraping({ jobId, userId, category, city, district, neighborhood }: ScrapeParams) {
     const { default: puppeteer } = await import('puppeteer');
@@ -49,18 +98,43 @@ export class ScraperService {
         const url = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
 
         console.log(`Searching for: ${searchQuery}`);
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        
+
+        let navigated = false;
+        for (let attempt = 1; attempt <= 3 && !navigated; attempt++) {
+          try {
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            navigated = true;
+          } catch (err: any) {
+            const msg = err?.message || '';
+            console.warn(`goto attempt ${attempt} failed: ${msg}`);
+            if (/detached|Target closed|Session closed/i.test(msg) && attempt < 3) {
+              await new Promise((r) => setTimeout(r, 2000));
+              continue;
+            }
+            if (attempt === 3) throw err;
+          }
+        }
+
+        // Handle cookie/consent redirect (consent.google.com) before waiting for feed
+        try {
+          if (page.url().includes('consent.')) {
+            const consentBtn = await page.$('button[aria-label*="Kabul"], button[aria-label*="Accept"], form[action*="consent"] button');
+            if (consentBtn) {
+              await Promise.all([
+                page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
+                consentBtn.click(),
+              ]);
+            }
+          } else {
+            const consentButton = await page.$('button[aria-label*="Kabul"], button[aria-label*="Accept"]');
+            if (consentButton) await consentButton.click().catch(() => {});
+          }
+        } catch (e) {}
+
         // Wait for results container explicitly
         await page.waitForSelector('div[role="feed"]', { timeout: 15000 }).catch(() => {
           console.log("Feed selector not found, might be a direct hit or slow load.");
         });
-
-        // Handle cookie consent if visible
-        try {
-          const consentButton = await page.$('button[aria-label*="Kabul"], button[aria-label*="Accept"]');
-          if (consentButton) await consentButton.click();
-        } catch (e) {}
 
         // Scroll with role="feed" targeting
         await page.evaluate(async () => {
@@ -217,15 +291,8 @@ export class ScraperService {
         // Google Maps often returns "nearby" results from adjacent neighborhoods.
         // If a neighborhood is selected, we verify it exists in the address.
         if (neighborhood) {
-          const addr = detailedData.address.toLowerCase();
-          const target = neighborhood.toLowerCase();
-          // Check for exact match or basic variations like "altayçeşme mah"
-          const isMatch = addr.includes(target) || 
-                          addr.includes(target.replace(' mahallesi', '')) ||
-                          addr.includes(target.replace(' mah.', ''));
-          
-          if (!isMatch) {
-            console.log(`  ⚠ Skipping: ${res.name} (Address doesn't match neighborhood ${neighborhood})`);
+          if (!addressMatchesNeighborhood(detailedData.address, neighborhood)) {
+            console.log(`  ⚠ Skipping: ${res.name} (Address "${detailedData.address}" doesn't match neighborhood ${neighborhood})`);
             continue;
           }
         }

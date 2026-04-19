@@ -153,6 +153,67 @@ export async function logWhatsApp(data: {
   })
 }
 
+export interface WhatsAppStatus {
+  status: "disconnected" | "initializing" | "qr" | "authenticated" | "ready" | "auth_failure"
+  qr: string | null
+  lastError: string | null
+  campaign: WhatsAppCampaign | null
+}
+
+export interface WhatsAppCampaign {
+  id: string
+  userId: string
+  listId: string
+  total: number
+  processed: number
+  sent: number
+  failed: number
+  skipped: number
+  status: "running" | "paused" | "completed" | "stopped" | "failed"
+  currentLead?: string
+  startedAt: number
+  finishedAt?: number
+  lastError?: string
+}
+
+export async function getWhatsAppStatus(): Promise<WhatsAppStatus> {
+  return fetchApi<WhatsAppStatus>("/api/whatsapp/status")
+}
+
+export async function initWhatsApp(): Promise<{ status: string }> {
+  return fetchApi<{ status: string }>("/api/whatsapp/init", { method: "POST" })
+}
+
+export async function logoutWhatsApp(): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>("/api/whatsapp/logout", { method: "POST" })
+}
+
+export interface WhatsAppMedia {
+  data: string
+  mimeType: string
+  filename: string
+}
+
+export async function startWhatsAppCampaign(body: {
+  listId: string
+  messageTemplate: string
+  messageTemplateNoWebsite?: string
+  minDelaySec?: number
+  maxDelaySec?: number
+  coffeeBreakEvery?: number
+  coffeeBreakMinutes?: number
+  media?: WhatsAppMedia
+}): Promise<WhatsAppCampaign> {
+  return fetchApi<WhatsAppCampaign>("/api/whatsapp/campaign/start", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function stopWhatsAppCampaign(): Promise<{ message: string; campaign: WhatsAppCampaign }> {
+  return fetchApi("/api/whatsapp/campaign/stop", { method: "POST" })
+}
+
 export { API_URL, ApiError, fetchApi }
 
 export const api = {
