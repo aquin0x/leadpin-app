@@ -58,6 +58,47 @@ export function addressMatchesNeighborhood(address: string, neighborhood: string
   return false;
 }
 
+// Fetches canonical neighborhood list for a district from turkiyeapi.dev.
+// Cached per-run so we don't hit the API once per business.
+async function fetchNeighborhoodList(city: string, district?: string): Promise<string[]> {
+  if (!city || !district) return [];
+  try {
+    const provs = await fetch('https://turkiyeapi.dev/api/v1/provinces').then((r) => r.json());
+    const prov = (provs?.data || []).find((p: any) => p.name === city);
+    if (!prov) return [];
+    const provDetail = await fetch(`https://turkiyeapi.dev/api/v1/provinces/${prov.id}`).then((r) => r.json());
+    const dist = (provDetail?.data?.districts || []).find((d: any) => d.name === district);
+    if (!dist) return [];
+    const distDetail = await fetch(`https://turkiyeapi.dev/api/v1/districts/${dist.id}`).then((r) => r.json());
+    return (distDetail?.data?.neighborhoods || []).map((n: any) => n.name).filter(Boolean);
+  } catch (e) {
+    console.warn('fetchNeighborhoodList failed:', e);
+    return [];
+  }
+}
+
+// Extracts neighborhood from a Google Maps address like "Atalar Mah., Kartal/İstanbul"
+// and matches it against the canonical list (returns canonical name when possible).
+function extractNeighborhood(address: string, canonicalList: string[]): string | null {
+  if (!address) return null;
+  // Pick the token that immediately precedes a "Mah." / "Mahallesi" marker.
+  const match = address.match(/([^,./\\]+?)\s*(?:mahallesi|mah\.?|mhl\.?|mh\.?)\b/i);
+  const raw = match?.[1]?.trim();
+  if (!raw) return null;
+
+  if (canonicalList.length > 0) {
+    const rawNorm = normalizeTR(raw);
+    for (const cand of canonicalList) {
+      if (normalizeTR(cand) === rawNorm) return cand;
+    }
+    // Loose fallback: any canonical neighborhood whose name matches the extracted token.
+    for (const cand of canonicalList) {
+      if (addressMatchesNeighborhood(raw + ' mah', cand)) return cand;
+    }
+  }
+  return raw;
+}
+
 // 4-char id from [a-z0-9], guaranteed to contain at least one letter AND one digit.
 // Rejects all-letter or all-digit draws (~24% of raw 36^4) and retries.
 function generateShortId(): string {
@@ -97,13 +138,20 @@ export class ScraperService {
     });
 
     try {
-      const page = await browser.newPage();
+      let page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
+
       const categories = category.split(',').map(c => c.trim()).filter(Boolean);
       const allUniqueResults = new Map<string, { name: string, mapsUrl: string }>();
 
       console.log(`Starting multi-category scrape for: ${categories.join(', ')}`);
+
+      // Load canonical neighborhood list for this district (used to fill missing neighborhood
+      // fields and to normalize extracted values to the UI's format).
+      const canonicalNeighborhoods = await fetchNeighborhoodList(city, district);
+      if (canonicalNeighborhoods.length) {
+        console.log(`Loaded ${canonicalNeighborhoods.length} canonical neighborhoods for ${district}`);
+      }
 
       for (const cat of categories) {
         const searchQuery = `${city} ${district || ''} ${neighborhood || ''} ${cat}`;
@@ -119,7 +167,11 @@ export class ScraperService {
           } catch (err: any) {
             const msg = err?.message || '';
             console.warn(`goto attempt ${attempt} failed: ${msg}`);
-            if (/detached|Target closed|Session closed/i.test(msg) && attempt < 3) {
+            if (attempt < 3 && /detached|Target closed|Session closed/i.test(msg)) {
+              // Frame detached => mevcut page tamamen bozuk, yenisiyle değiştir.
+              try { await page.close(); } catch {}
+              page = await browser.newPage();
+              await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
               await new Promise((r) => setTimeout(r, 2000));
               continue;
             }
@@ -317,12 +369,13 @@ export class ScraperService {
           .eq('user_id', userId)
           .maybeSingle();
 
+        const extractedNeighborhood = extractNeighborhood(detailedData.address || '', canonicalNeighborhoods);
         const businessData = {
           name: res.name,
           category: detailedData.category || category,
           city,
           district,
-          neighborhood,
+          neighborhood: neighborhood || extractedNeighborhood || null,
           address: detailedData.address,
           phone: detailedData.phone,
           website: detailedData.website,

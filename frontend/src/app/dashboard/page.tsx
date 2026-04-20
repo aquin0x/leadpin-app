@@ -20,6 +20,20 @@ import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
 import type { BusinessFilters } from "@/types"
 
+function PageHeader({ icon, iconBg, title, subtitle }: { icon: React.ReactNode; iconBg: string; title: string; subtitle: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className={cn("flex size-12 items-center justify-center rounded-2xl", iconBg)}>
+        {icon}
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-zinc-100">{title}</h2>
+        <p className="text-xs text-zinc-500">{subtitle}</p>
+      </div>
+    </div>
+  )
+}
+
 function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -197,9 +211,15 @@ function DashboardContent() {
           </div>
 
           {/* DYNAMIC CONTENT AREA */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 min-h-[calc(100vh-7rem)] overflow-x-hidden">
             {currentView === "main" ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
+                <PageHeader
+                  icon={<LayoutDashboard className="size-6 text-blue-400" />}
+                  iconBg="bg-blue-500/10"
+                  title="Tüm Leads"
+                  subtitle="Toplanan işletmeler"
+                />
                 <StatsBar />
                 <LeadTable
                   data={data}
@@ -225,29 +245,19 @@ function DashboardContent() {
                 }}
               />
             ) : (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-5">
-                    <div className="flex size-16 items-center justify-center rounded-[24px] bg-blue-500/10 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
-                      <List className="size-8 text-blue-400" />
-                    </div>
-                    <div>
-                      <h2 className="font-sans text-4xl font-bold tracking-tight text-white">Listelerim</h2>
-                      <p className="font-medium text-zinc-500">Kayıtlı işletme koleksiyonlarınız</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[32px] border border-zinc-800 bg-zinc-900/40 p-1 backdrop-blur-xl">
-                  <div className="rounded-[31px] bg-zinc-950/50 p-8">
-                    <SavedLists
-                      onSelectList={(id, name) => {
-                        setSelectedList({ id, name })
-                        setCurrentView("list_detail")
-                      }}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-4">
+                <PageHeader
+                  icon={<List className="size-6 text-blue-400" />}
+                  iconBg="bg-blue-500/10"
+                  title="Listelerim"
+                  subtitle="Kayıtlı işletme koleksiyonlarınız"
+                />
+                <SavedLists
+                  onSelectList={(id, name) => {
+                    setSelectedList({ id, name })
+                    setCurrentView("list_detail")
+                  }}
+                />
               </div>
             )}
           </div>

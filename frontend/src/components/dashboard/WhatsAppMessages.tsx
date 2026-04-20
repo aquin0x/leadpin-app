@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
 import { listWhatsAppOutreach, type WhatsAppOutreachRow } from "@/lib/api-client"
-import { Search, MessageCircle, MousePointerClick } from "lucide-react"
+import { Search, MessageCircle, MousePointerClick, Send, Building2, Target } from "lucide-react"
 
 const STATUS_COLOR: Record<string, string> = {
   sent: "text-emerald-400 bg-emerald-500/10",
@@ -22,6 +23,65 @@ function formatDate(iso: string): string {
   } catch {
     return iso
   }
+}
+
+function StatsGrid({ rows, total, loading }: { rows: WhatsAppOutreachRow[]; total: number; loading: boolean }) {
+  const stats = useMemo(() => {
+    const uniqueBiz = new Map<string, { clicks: number }>()
+    for (const r of rows) {
+      const b = r.business
+      if (!b?.id) continue
+      if (!uniqueBiz.has(b.id)) uniqueBiz.set(b.id, { clicks: b.short_id_clicks || 0 })
+    }
+    let totalClicks = 0
+    let clickedBiz = 0
+    for (const { clicks } of uniqueBiz.values()) {
+      totalClicks += clicks
+      if (clicks > 0) clickedBiz += 1
+    }
+    return {
+      sent: total,
+      uniqueBiz: uniqueBiz.size,
+      clickedBiz,
+      totalClicks,
+    }
+  }, [rows, total])
+
+  const items = [
+    { label: "Toplam Gönderim", value: stats.sent, icon: Send, color: "text-emerald-400", bgColor: "bg-emerald-400/10" },
+    { label: "İşletme Sayısı", value: stats.uniqueBiz, icon: Building2, color: "text-blue-400", bgColor: "bg-blue-400/10" },
+    { label: "Linke Tıklayan", value: stats.clickedBiz, icon: Target, color: "text-amber-400", bgColor: "bg-amber-400/10" },
+    { label: "Toplam Tıklama", value: stats.totalClicks, icon: MousePointerClick, color: "text-purple-400", bgColor: "bg-purple-400/10" },
+  ]
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((stat) => (
+        <Card
+          key={stat.label}
+          className="group relative border-zinc-800 bg-zinc-900/40 backdrop-blur-sm transition-all duration-150 hover:border-zinc-700 hover:bg-zinc-900/60"
+        >
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className={`flex size-11 items-center justify-center rounded-xl transition-colors ${stat.bgColor}`}>
+              <stat.icon className={`size-5 ${stat.color}`} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-zinc-500">
+                {stat.label}
+              </p>
+              {loading ? (
+                <div className="mt-1 h-7 w-16 animate-pulse rounded bg-zinc-800" />
+              ) : (
+                <p className="text-2xl font-bold tracking-tight text-zinc-100">
+                  {stat.value.toLocaleString("tr-TR")}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
 }
 
 export function WhatsAppMessages() {
@@ -54,19 +114,17 @@ export function WhatsAppMessages() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-500/10">
-            <MessageCircle className="size-6 text-emerald-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-100">Gönderilen WhatsApp Mesajları</h2>
-            <p className="text-xs text-zinc-500">
-              {loading ? "Yükleniyor..." : `Toplam ${total} gönderim`}
-            </p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-500/10">
+          <MessageCircle className="size-6 text-emerald-400" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold text-zinc-100">WhatsApp Mesajları</h2>
+          <p className="text-xs text-zinc-500">Gönderilen mesajlar ve tıklama istatistikleri</p>
         </div>
       </div>
+
+      <StatsGrid rows={rows} total={total} loading={loading} />
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
@@ -78,8 +136,8 @@ export function WhatsAppMessages() {
         />
       </div>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-zinc-900 text-xs uppercase text-zinc-500">
             <tr>
               <th className="text-left px-4 py-3">İşletme</th>
