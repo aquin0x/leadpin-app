@@ -44,6 +44,71 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Public health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Public short-link redirect: ugra.io/{shortId} -> logs the click, then 302s to landing.
+// Target URL comes from SHORT_LINK_REDIRECT_URL env (shortId appended as ?lead=).
+app.get('/r/:shortId', async (req, res) => {
+  const { shortId } = req.params;
+  try {
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('id, short_id_clicks')
+      .eq('short_id', shortId)
+      .maybeSingle();
+
+    if (biz) {
+      await supabase
+        .from('businesses')
+        .update({
+          short_id_clicks: (biz.short_id_clicks || 0) + 1,
+          short_id_last_click_at: new Date().toISOString(),
+        })
+        .eq('id', biz.id);
+    }
+  } catch (e) {
+    console.error('short-link click log failed:', e);
+  }
+
+  const base = process.env.SHORT_LINK_REDIRECT_URL || 'https://ugra.io';
+  const sep = base.includes('?') ? '&' : '?';
+  return res.redirect(302, `${base}${sep}lead=${encodeURIComponent(shortId)}`);
+});
+
+// WhatsApp outreach feed (auth) — used by the "Gönderilen Mesajlar" panel.
+app.get('/api/outreach/whatsapp', authMiddleware, async (req, res) => {
+  const userId = (req as any).user.id;
+  const { search, limit = 50, offset = 0 } = req.query;
+  try {
+    let query = supabase
+      .from('outreach_logs')
+      .select('id, status, message_content, created_at, business:businesses(id, name, phone, short_id, short_id_clicks, short_id_last_click_at)', { count: 'exact' })
+      .eq('type', 'whatsapp')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(Number(offset), Number(offset) + Number(limit) - 1);
+
+    const { data, error, count } = await query;
+    if (error) return res.status(400).json({ message: error.message });
+
+    let rows = data || [];
+    if (search) {
+      const q = String(search).toLowerCase();
+      rows = rows.filter((r: any) => {
+        const b = r.business;
+        if (!b) return false;
+        return (
+          (b.short_id || '').toLowerCase().includes(q) ||
+          (b.name || '').toLowerCase().includes(q) ||
+          (b.phone || '').toLowerCase().includes(q)
+        );
+      });
+    }
+
+    return res.json({ rows, total: count });
+  } catch (e: any) {
+    return res.status(500).json({ message: e.message });
+  }
+});
+
 // Auth protected routes
 app.get('/api/stats', authMiddleware, getStats);
 app.get('/api/businesses', authMiddleware, getBusinesses);

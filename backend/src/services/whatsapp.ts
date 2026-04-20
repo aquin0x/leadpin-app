@@ -167,11 +167,30 @@ function normalizePhone(raw: string): string | null {
   return null;
 }
 
+// Spintax: {a|b|c} picks one at random. Nested groups supported via innermost-first expansion.
+// Runs BEFORE variable substitution so variables like {name} (no pipe) are left intact.
+function parseSpintax(input: string): string {
+  let out = input;
+  // Only match groups with at least one '|' so single-token {name} placeholders are skipped.
+  const rx = /\{([^{}]*\|[^{}]*)\}/;
+  let guard = 0;
+  while (rx.test(out) && guard++ < 100) {
+    out = out.replace(rx, (_, body: string) => {
+      const opts = body.split('|');
+      return opts[Math.floor(Math.random() * opts.length)];
+    });
+  }
+  return out;
+}
+
 function renderTemplate(tpl: string, vars: Record<string, string | number | boolean | null | undefined>): string {
-  return tpl.replace(/\{(\w+)\}/g, (_, key) => {
+  const spun = parseSpintax(tpl);
+  return spun.replace(/\{(\w+)\}/g, (_, key) => {
+    // Turkish alias: {işletmeAdi} -> name. JS regex \w doesn't match ş/İ, so this branch
+    // fires only for ascii keys; non-ascii placeholders handled below.
     const v = vars[key];
     return v == null ? '' : String(v);
-  });
+  }).replace(/\{işletmeAdi\}/g, () => String(vars.name ?? ''));
 }
 
 function pickGreeting(): string {
@@ -192,6 +211,7 @@ interface Business {
   name: string;
   phone: string | null;
   website: string | null;
+  short_id: string | null;
 }
 
 async function logOutreach(
@@ -257,7 +277,7 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
 
   const { data: items, error } = await supabase
     .from('list_items')
-    .select('business:businesses(id, name, phone, website)')
+    .select('business:businesses(id, name, phone, website, short_id)')
     .eq('list_id', listId);
   if (error) throw new Error(error.message);
 
@@ -304,6 +324,7 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
         name: biz.name,
         greeting: pickGreeting(),
         hasWebsite,
+        shortId: biz.short_id ?? '',
       });
 
       try {

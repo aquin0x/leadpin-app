@@ -214,6 +214,33 @@ export async function stopWhatsAppCampaign(): Promise<{ message: string; campaig
   return fetchApi("/api/whatsapp/campaign/stop", { method: "POST" })
 }
 
+export interface WhatsAppOutreachRow {
+  id: string
+  status: "sent" | "failed" | "skipped"
+  message_content: string
+  created_at: string
+  business: {
+    id: string
+    name: string
+    phone: string | null
+    short_id: string | null
+    short_id_clicks: number
+    short_id_last_click_at: string | null
+  } | null
+}
+
+export async function listWhatsAppOutreach(
+  search?: string,
+  limit = 100,
+  offset = 0
+): Promise<{ rows: WhatsAppOutreachRow[]; total: number }> {
+  const params = new URLSearchParams()
+  if (search) params.set("search", search)
+  params.set("limit", String(limit))
+  params.set("offset", String(offset))
+  return fetchApi(`/api/outreach/whatsapp?${params.toString()}`)
+}
+
 export { API_URL, ApiError, fetchApi }
 
 export const api = {

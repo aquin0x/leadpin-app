@@ -58,6 +58,14 @@ export function addressMatchesNeighborhood(address: string, neighborhood: string
   return false;
 }
 
+// 4-char id from [0-9a-z]. ~1.68M combinations; insert retries on unique conflict.
+function generateShortId(): string {
+  const alphabet = '0123456789abcdefghijklmnopqrstuvwxyz';
+  let out = '';
+  for (let i = 0; i < 4; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return out;
+}
+
 export class ScraperService {
   static async startScraping({ jobId, userId, category, city, district, neighborhood }: ScrapeParams) {
     const { default: puppeteer } = await import('puppeteer');
@@ -323,18 +331,25 @@ export class ScraperService {
 
         let dbError;
         if (existing) {
-          // Update existing
+          // Update existing — don't overwrite short_id (preserve links already shared)
           const { error } = await supabase
             .from('businesses')
             .update(businessData)
             .eq('id', existing.id);
           dbError = error;
         } else {
-          // Insert new
-          const { error } = await supabase
-            .from('businesses')
-            .insert(businessData);
-          dbError = error;
+          // Insert new — retry on short_id unique conflict (unlikely but possible)
+          let lastErr: any = null;
+          for (let attempt = 0; attempt < 5; attempt++) {
+            const { error } = await supabase
+              .from('businesses')
+              .insert({ ...businessData, short_id: generateShortId() });
+            if (!error) { lastErr = null; break; }
+            lastErr = error;
+            // Only retry on short_id uniqueness; otherwise bail.
+            if (!/short_id/i.test(error.message || '')) break;
+          }
+          dbError = lastErr;
         }
 
         if (dbError) {

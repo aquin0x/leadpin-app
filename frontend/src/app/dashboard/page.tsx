@@ -2,7 +2,7 @@
 
 import { useState, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Target, LogOut, User, LayoutDashboard, List } from "lucide-react"
+import { Target, LogOut, User, LayoutDashboard, List, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatsBar } from "@/components/dashboard/StatsBar"
 import { FilterBar } from "@/components/dashboard/FilterBar"
@@ -15,6 +15,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { createClient } from "@/lib/supabase-client"
 import { SavedLists } from "@/components/dashboard/SavedLists"
 import { ListDetail } from "@/components/dashboard/ListDetail"
+import { WhatsAppMessages } from "@/components/dashboard/WhatsAppMessages"
 import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
 import type { BusinessFilters } from "@/types"
@@ -24,7 +25,7 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const [scrapeModalOpen, setScrapeModalOpen] = useState(false)
-  const [currentView, setCurrentView] = useState<"main" | "lists" | "list_detail">("main")
+  const [currentView, setCurrentView] = useState<"main" | "lists" | "list_detail" | "whatsapp">("main")
   const [selectedList, setSelectedList] = useState<{ id: string; name: string } | null>(null)
 
   const page = Number(searchParams.get("page")) || 1
@@ -165,6 +166,17 @@ function DashboardContent() {
                 <List className={cn("mr-3 size-5", currentView === "lists" ? "text-blue-400" : "text-zinc-500 group-hover:text-zinc-300")} />
                 Listeler
               </Button>
+              <Button
+                variant="ghost"
+                onClick={() => { setCurrentView("whatsapp"); setSelectedList(null) }}
+                className={cn(
+                  "justify-start h-11 px-4 rounded-xl font-medium transition-all group",
+                  currentView === "whatsapp" ? "bg-emerald-500/10 text-emerald-400" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
+                )}
+              >
+                <MessageCircle className={cn("mr-3 size-5", currentView === "whatsapp" ? "text-emerald-400" : "text-zinc-500 group-hover:text-zinc-300")} />
+                WhatsApp
+              </Button>
               <div className="my-1 h-px bg-zinc-800/50" />
               <Button
                 onClick={() => setScrapeModalOpen(true)}
@@ -201,6 +213,8 @@ function DashboardContent() {
                   onSort={handleSort}
                 />
               </div>
+            ) : currentView === "whatsapp" ? (
+              <WhatsAppMessages />
             ) : currentView === "list_detail" && selectedList ? (
               <ListDetail
                 listId={selectedList.id}
