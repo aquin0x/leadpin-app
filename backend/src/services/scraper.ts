@@ -58,12 +58,16 @@ export function addressMatchesNeighborhood(address: string, neighborhood: string
   return false;
 }
 
-// 4-char id from [0-9a-z]. ~1.68M combinations; insert retries on unique conflict.
+// 4-char id from [a-z0-9], guaranteed to contain at least one letter AND one digit.
+// Rejects all-letter or all-digit draws (~24% of raw 36^4) and retries.
 function generateShortId(): string {
-  const alphabet = '0123456789abcdefghijklmnopqrstuvwxyz';
-  let out = '';
-  for (let i = 0; i < 4; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return out;
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  for (let attempt = 0; attempt < 10; attempt++) {
+    let out = '';
+    for (let i = 0; i < 4; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+    if (/[a-z]/.test(out) && /[0-9]/.test(out)) return out;
+  }
+  return 'a1' + alphabet[Math.floor(Math.random() * alphabet.length)] + alphabet[Math.floor(Math.random() * alphabet.length)];
 }
 
 export class ScraperService {
