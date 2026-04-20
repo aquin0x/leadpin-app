@@ -8,6 +8,7 @@ dist/
 .next/
 out/
 build/
+*.tsbuildinfo
 
 # Environment variables (Şifrelerin gitmemesi için kritik)
 .env
