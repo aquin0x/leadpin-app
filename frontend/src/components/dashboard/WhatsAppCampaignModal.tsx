@@ -11,15 +11,15 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, MessageCircle, Power, Square, Paperclip, X, Save, Trash2 } from "lucide-react"
+import { Loader2, MessageCircle, Square, Paperclip, X, Save, Trash2 } from "lucide-react"
 import {
-  getWhatsAppStatus,
-  initWhatsApp,
-  logoutWhatsApp,
+  listWhatsAppLines,
   startWhatsAppCampaign,
   stopWhatsAppCampaign,
-  type WhatsAppStatus,
+  type WhatsAppLine,
+  type WhatsAppCampaign,
 } from "@/lib/api-client"
+import { api } from "@/lib/api-client"
 import toast from "react-hot-toast"
 
 interface Props {
@@ -83,7 +83,9 @@ export function WhatsAppCampaignModal({
   listName,
   leadCount,
 }: Props) {
-  const [status, setStatus] = useState<WhatsAppStatus | null>(null)
+  const [lines, setLines] = useState<WhatsAppLine[]>([])
+  const [campaign, setCampaign] = useState<WhatsAppCampaign | null>(null)
+  const [selectedLineId, setSelectedLineId] = useState<string>("")
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE)
   const [templateNoWebsite, setTemplateNoWebsite] = useState(DEFAULT_TEMPLATE_NO_WEBSITE)
   const [minDelay, setMinDelay] = useState(60)
@@ -118,15 +120,25 @@ export function WhatsAppCampaignModal({
 
     const tick = async () => {
       try {
-        const s = await getWhatsAppStatus()
-        if (!cancelled) setStatus(s)
+        const [ls, camp] = await Promise.all([
+          listWhatsAppLines(),
+          api.get<{ campaign: WhatsAppCampaign | null }>("/api/whatsapp/campaign").catch(() => ({ campaign: null })),
+        ])
+        if (cancelled) return
+        setLines(ls)
+        setCampaign(camp.campaign ?? null)
+        setSelectedLineId((prev) => {
+          if (prev && ls.some((l) => l.id === prev)) return prev
+          const ready = ls.find((l) => l.status === "ready")
+          return ready?.id ?? ""
+        })
       } catch {
         // ignore polling errors
       }
     }
 
     tick()
-    const id = setInterval(tick, 2000)
+    const id = setInterval(tick, 2500)
     return () => {
       cancelled = true
       clearInterval(id)
@@ -194,25 +206,6 @@ export function WhatsAppCampaignModal({
     setMediaFile(f)
   }
 
-  const handleConnect = async () => {
-    try {
-      await initWhatsApp()
-      toast.success("WhatsApp başlatıldı — QR kod geliyor")
-    } catch (e: any) {
-      toast.error(e.message || "Bağlantı başlatılamadı")
-    }
-  }
-
-  const handleLogout = async () => {
-    if (!confirm("WhatsApp oturumunu kapatmak istiyor musunuz?")) return
-    try {
-      await logoutWhatsApp()
-      toast.success("Oturum kapatıldı")
-    } catch (e: any) {
-      toast.error(e.message)
-    }
-  }
-
   const handleStart = async () => {
     if (!template.trim()) {
       toast.error("Mesaj şablonu boş olamaz")
@@ -231,6 +224,7 @@ export function WhatsAppCampaignModal({
       }
       await startWhatsAppCampaign({
         listId,
+        lineId: selectedLineId || undefined,
         messageTemplate: template,
         messageTemplateNoWebsite: templateNoWebsite || undefined,
         minDelaySec: minDelay,
@@ -256,7 +250,8 @@ export function WhatsAppCampaignModal({
     }
   }
 
-  const campaign = status?.campaign
+  const readyLines = lines.filter((l) => l.status === "ready")
+  const selectedLine = lines.find((l) => l.id === selectedLineId) || null
   const isRunning = campaign?.status === "running"
   const progress = campaign && campaign.total > 0
     ? Math.round((campaign.processed / campaign.total) * 100)
@@ -273,36 +268,27 @@ export function WhatsAppCampaignModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
-            <div>
-              <div className="text-xs text-zinc-500 uppercase tracking-wider">Bağlantı</div>
-              <div className="text-sm font-semibold text-zinc-100">
-                {status?.status ?? "..."}
-                {status?.lastError && (
-                  <span className="ml-2 text-red-400 text-xs">{status.lastError}</span>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {status?.status !== "ready" && (
-                <Button size="sm" onClick={handleConnect} className="bg-emerald-600 hover:bg-emerald-500">
-                  <Power className="mr-1 size-3" /> Bağlan
-                </Button>
-              )}
-              {status?.status === "ready" && (
-                <Button size="sm" variant="ghost" onClick={handleLogout} className="text-zinc-400">
-                  Çıkış yap
-                </Button>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-zinc-500 uppercase tracking-wider">Gönderim Hattı</div>
+              {readyLines.length === 0 && (
+                <span className="text-xs text-amber-400">Hesap'tan WhatsApp hattı ekleyin</span>
               )}
             </div>
+            <select
+              value={selectedLineId}
+              onChange={(e) => setSelectedLineId(e.target.value)}
+              disabled={readyLines.length === 0}
+              className="w-full rounded border border-zinc-700 bg-zinc-900 text-sm text-zinc-200 px-2 py-2 disabled:opacity-50"
+            >
+              {readyLines.length === 0 && <option value="">Hazır hat yok</option>}
+              {readyLines.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}{l.phone ? ` — ${l.phone}` : ""}
+                </option>
+              ))}
+            </select>
           </div>
-
-          {status?.status === "qr" && status.qr && (
-            <div className="flex flex-col items-center rounded-xl border border-zinc-800 bg-white p-4">
-              <img src={status.qr} alt="WhatsApp QR" className="size-64" />
-              <p className="mt-2 text-xs text-zinc-600">Telefonunuzdan WhatsApp &gt; Bağlı Cihazlar &gt; Cihaz Ekle</p>
-            </div>
-          )}
 
           {campaign && (
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2">
@@ -440,7 +426,7 @@ export function WhatsAppCampaignModal({
             </Button>
             <Button
               onClick={handleStart}
-              disabled={status?.status !== "ready" || isRunning || starting || leadCount === 0}
+              disabled={!selectedLine || selectedLine.status !== "ready" || isRunning || starting || leadCount === 0}
               className="bg-emerald-600 hover:bg-emerald-500"
             >
               {starting ? (

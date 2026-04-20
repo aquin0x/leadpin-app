@@ -81,22 +81,50 @@ async function fetchNeighborhoodList(city: string, district?: string): Promise<s
 // and matches it against the canonical list (returns canonical name when possible).
 function extractNeighborhood(address: string, canonicalList: string[]): string | null {
   if (!address) return null;
-  // Pick the token that immediately precedes a "Mah." / "Mahallesi" marker.
+
+  // 1) Try the explicit "X Mah./Mahallesi" pattern first.
   const match = address.match(/([^,./\\]+?)\s*(?:mahallesi|mah\.?|mhl\.?|mh\.?)\b/i);
   const raw = match?.[1]?.trim();
-  if (!raw) return null;
 
-  if (canonicalList.length > 0) {
+  if (raw && canonicalList.length > 0) {
     const rawNorm = normalizeTR(raw);
     for (const cand of canonicalList) {
       if (normalizeTR(cand) === rawNorm) return cand;
     }
-    // Loose fallback: any canonical neighborhood whose name matches the extracted token.
     for (const cand of canonicalList) {
       if (addressMatchesNeighborhood(raw + ' mah', cand)) return cand;
     }
   }
-  return raw;
+
+  // 2) Fallback: Google bazen "Mah." yazmadan sadece mahalle adını koyar (ör. "Çeşme, Safranbolu").
+  //    Adresi parçalara böl, her parçayı kanonik liste ile karşılaştır.
+  if (canonicalList.length > 0) {
+    const parts = address
+      .split(/[,./\\\n]+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      const partNorm = normalizeTR(part);
+      if (!partNorm) continue;
+      for (const cand of canonicalList) {
+        if (normalizeTR(cand) === partNorm) return cand;
+      }
+    }
+    // Kelime bazlı (1-3 ardışık kelimeyi dene)
+    const words = address.split(/\s+/).filter(Boolean);
+    for (let n = 3; n >= 1; n--) {
+      for (let i = 0; i + n <= words.length; i++) {
+        const phrase = words.slice(i, i + n).join(' ').replace(/[,./\\]/g, '').trim();
+        if (!phrase) continue;
+        const phNorm = normalizeTR(phrase);
+        for (const cand of canonicalList) {
+          if (normalizeTR(cand) === phNorm) return cand;
+        }
+      }
+    }
+  }
+
+  return raw || null;
 }
 
 // 4-char id from [a-z0-9], guaranteed to contain at least one letter AND one digit.
@@ -130,7 +158,7 @@ export class ScraperService {
       '--disable-accelerated-2d-canvas',
       '--font-render-hinting=none',
     ];
-    const browser = await puppeteer.launch({
+    let browser = await puppeteer.launch({
       headless,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       args: headless ? [...baseArgs, ...headlessOnlyArgs] : baseArgs,
@@ -167,10 +195,36 @@ export class ScraperService {
           } catch (err: any) {
             const msg = err?.message || '';
             console.warn(`goto attempt ${attempt} failed: ${msg}`);
-            if (attempt < 3 && /detached|Target closed|Session closed/i.test(msg)) {
-              // Frame detached => mevcut page tamamen bozuk, yenisiyle değiştir.
-              try { await page.close(); } catch {}
-              page = await browser.newPage();
+
+            // "Frame detached" çoğu zaman Google'ın consent/redirect yapmasından kaynaklanır ve
+            // aslında sayfa yüklenmiş olur. URL google.com ya da consent.google.com ise devam et.
+            if (/detached/i.test(msg)) {
+              try {
+                await new Promise((r) => setTimeout(r, 1500));
+                const curUrl = page.url();
+                if (curUrl.includes('google.') || curUrl.includes('consent.')) {
+                  console.log(`Frame detached ama sayfa yüklenmiş gibi (${curUrl}), devam ediliyor.`);
+                  navigated = true;
+                  break;
+                }
+              } catch {}
+            }
+
+            const stillConnected = (browser as any).connected ?? (browser as any).isConnected?.() ?? true;
+            if (attempt < 3 && /detached|Target closed|Session closed|Connection closed|Protocol error/i.test(msg)) {
+              if (/Connection closed|Protocol error/i.test(msg) || !stillConnected) {
+                try { await browser.close(); } catch {}
+                browser = await puppeteer.launch({
+                  headless,
+                  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                  args: headless ? [...baseArgs, ...headlessOnlyArgs] : baseArgs,
+                  defaultViewport: headless ? { width: 1280, height: 800 } : null,
+                });
+                page = await browser.newPage();
+              } else {
+                try { await page.close(); } catch {}
+                page = await browser.newPage();
+              }
               await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
               await new Promise((r) => setTimeout(r, 2000));
               continue;

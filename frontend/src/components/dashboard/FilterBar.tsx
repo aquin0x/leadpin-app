@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
-import { Search, X, ScanSearch, Trash2, Filter } from "lucide-react"
+import { Search, X, ScanSearch, Filter } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { clearAllData } from "@/lib/api-client"
 import toast from "react-hot-toast"
 
 interface FilterBarProps {
@@ -63,21 +62,6 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     router.push(`${pathname}?${params.toString()}`)
     toast.success("Filtreler uygulandı", { duration: 1500, icon: '🔍' })
   }, [localFilters, router, pathname])
-
-  const handleClearData = async () => {
-    if (!confirm("Tüm tarama verilerini, işletmeleri ve logları silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
-      return
-    }
-
-    try {
-      await clearAllData()
-      toast.success("Tüm veriler temizlendi")
-      if (onRefresh) onRefresh()
-      router.refresh()
-    } catch {
-      toast.error("Veriler temizlenirken bir hata oluştu")
-    }
-  }
 
   const clearFilters = useCallback(() => {
     router.push(pathname)
@@ -254,18 +238,6 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
           Filtreleri Uygula
         </Button>
 
-        <Separator className="bg-zinc-800" />
-
-        <div className="grid grid-cols-1 gap-2">
-          <Button
-            onClick={handleClearData}
-            variant="ghost"
-            className="w-full text-zinc-500 hover:text-red-400 hover:bg-red-400/5 transition-colors text-xs font-medium"
-          >
-            <Trash2 className="mr-2 size-3.5" />
-            Tüm Verileri Sıfırla
-          </Button>
-        </div>
       </div>
     </aside>
   )

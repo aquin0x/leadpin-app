@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase-client"
 import { SavedLists } from "@/components/dashboard/SavedLists"
 import { ListDetail } from "@/components/dashboard/ListDetail"
 import { WhatsAppMessages } from "@/components/dashboard/WhatsAppMessages"
+import { AccountDialog } from "@/components/dashboard/AccountDialog"
 import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
 import type { BusinessFilters } from "@/types"
@@ -39,6 +40,7 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const [scrapeModalOpen, setScrapeModalOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const [currentView, setCurrentView] = useState<"main" | "lists" | "list_detail" | "whatsapp">("main")
   const [selectedList, setSelectedList] = useState<{ id: string; name: string } | null>(null)
 
@@ -133,6 +135,7 @@ function DashboardContent() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setAccountOpen(true)}
               className="text-zinc-400 hover:text-zinc-200"
             >
               <User className="mr-1 size-3.5" />
@@ -269,6 +272,7 @@ function DashboardContent() {
         onOpenChange={setScrapeModalOpen}
         onComplete={handleScrapeComplete}
       />
+      <AccountDialog open={accountOpen} onOpenChange={setAccountOpen} />
     </div>
   )
 }

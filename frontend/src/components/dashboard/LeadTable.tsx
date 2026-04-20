@@ -63,21 +63,34 @@ function WhatsAppPopover({ business }: { business: Business }) {
   const outreach = useWhatsAppOutreach()
   const messages = generateMessages(business)
 
-  const handleSend = () => {
-    const message = messages[parseInt(selectedMsg)]
+  const doSend = (message: string) => {
     outreach.mutate(
       { businessId: business.id, message },
       {
-        onSuccess: () => {
-          toast.success("WhatsApp açılıyor...")
-          setOpen(false)
+        onSuccess: (res) => {
+          if (res.ok) {
+            toast.success("WhatsApp mesajı gönderildi")
+            setOpen(false)
+            return
+          }
+          if (res.reason === "no_line") {
+            toast.error("Önce Hesap'tan bir WhatsApp hattı ekleyin")
+            return
+          }
+          if (res.reason === "not_ready") {
+            toast.error("WhatsApp hattı hazır değil. Hesap'tan QR'ı okutun.")
+            return
+          }
+          if (res.reason === "no_phone") toast.error("Geçerli WhatsApp numarası yok")
+          else if (res.reason === "no_whatsapp") toast.error("Bu numarada WhatsApp hesabı yok")
+          else toast.error(res.error || "Gönderim başarısız")
         },
-        onError: () => {
-          toast.error("Bir hata oluştu")
-        },
+        onError: () => toast.error("Bir hata oluştu"),
       }
     )
   }
+
+  const handleSend = () => doSend(messages[parseInt(selectedMsg)])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -117,7 +130,7 @@ function WhatsAppPopover({ business }: { business: Business }) {
           size="sm"
         >
           <MessageCircle className="mr-2 size-3.5" />
-          {outreach.isPending ? "Gönderiliyor..." : "WhatsApp'ta Aç"}
+          {outreach.isPending ? "Gönderiliyor..." : "WhatsApp ile Gönder"}
         </Button>
       </PopoverContent>
     </Popover>

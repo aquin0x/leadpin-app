@@ -1,11 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { MessageCircle, Mail, Send } from "lucide-react"
+import { MessageCircle, Send } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { generateMessages } from "@/lib/message-generator"
@@ -29,19 +28,33 @@ export function OutreachPanel({ business }: OutreachPanelProps) {
     setCustomMessage(messages[parseInt(value)])
   }
 
-  const handleSendWhatsApp = () => {
+  const doSend = (message: string) => {
     outreach.mutate(
-      { businessId: business.id, message: customMessage },
+      { businessId: business.id, message },
       {
-        onSuccess: () => {
-          toast.success("WhatsApp açılıyor...")
+        onSuccess: (res) => {
+          if (res.ok) {
+            toast.success("WhatsApp mesajı gönderildi")
+            return
+          }
+          if (res.reason === "no_line") {
+            toast.error("Önce Hesap'tan bir WhatsApp hattı ekleyin")
+            return
+          }
+          if (res.reason === "not_ready") {
+            toast.error("WhatsApp hattı hazır değil. Hesap'tan QR'ı okutun.")
+            return
+          }
+          if (res.reason === "no_phone") toast.error("Geçerli WhatsApp numarası yok")
+          else if (res.reason === "no_whatsapp") toast.error("Bu numarada WhatsApp hesabı yok")
+          else toast.error(res.error || "Gönderim başarısız")
         },
-        onError: () => {
-          toast.error("Bir hata oluştu")
-        },
+        onError: () => toast.error("Bir hata oluştu"),
       }
     )
   }
+
+  const handleSendWhatsApp = () => doSend(customMessage)
 
   return (
     <Card className="border-zinc-800 bg-zinc-900/50">
@@ -97,7 +110,7 @@ export function OutreachPanel({ business }: OutreachPanelProps) {
             className="w-full bg-emerald-600 text-white hover:bg-emerald-500"
           >
             <MessageCircle className="mr-2 size-4" />
-            {outreach.isPending ? "Gönderiliyor..." : "WhatsApp'ta Aç"}
+            {outreach.isPending ? "Gönderiliyor..." : "WhatsApp ile Gönder"}
           </Button>
         </div>
 

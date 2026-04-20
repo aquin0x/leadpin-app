@@ -173,4 +173,7 @@ app.get('/api/scrape/:id/stream', authMiddleware, (req, res) => {
 
 app.listen(Number(port), '0.0.0.0', () => {
   console.log(`🚀 LeadPin API runs on port ${port}`);
+  import('./services/whatsapp').then(({ bootstrapLines }) => {
+    bootstrapLines().catch((e) => console.error('WA bootstrap failed:', e?.message));
+  });
 });

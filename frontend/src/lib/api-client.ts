@@ -153,8 +153,26 @@ export async function logWhatsApp(data: {
   })
 }
 
+export type WhatsAppSessionStatus =
+  | "disconnected"
+  | "initializing"
+  | "qr"
+  | "authenticated"
+  | "ready"
+  | "auth_failure"
+
+export interface WhatsAppLine {
+  id: string
+  label: string
+  phone?: string
+  status: WhatsAppSessionStatus
+  qr: string | null
+  lastError?: string
+  createdAt: number
+}
+
 export interface WhatsAppStatus {
-  status: "disconnected" | "initializing" | "qr" | "authenticated" | "ready" | "auth_failure"
+  status: WhatsAppSessionStatus
   qr: string | null
   lastError: string | null
   campaign: WhatsAppCampaign | null
@@ -176,16 +194,29 @@ export interface WhatsAppCampaign {
   lastError?: string
 }
 
-export async function getWhatsAppStatus(): Promise<WhatsAppStatus> {
-  return fetchApi<WhatsAppStatus>("/api/whatsapp/status")
+export async function listWhatsAppLines(): Promise<WhatsAppLine[]> {
+  const { lines } = await fetchApi<{ lines: WhatsAppLine[] }>("/api/whatsapp/lines")
+  return lines
 }
 
-export async function initWhatsApp(): Promise<{ status: string }> {
-  return fetchApi<{ status: string }>("/api/whatsapp/init", { method: "POST" })
+export async function createWhatsAppLine(label?: string): Promise<WhatsAppLine> {
+  return fetchApi<WhatsAppLine>("/api/whatsapp/lines", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label }),
+  })
 }
 
-export async function logoutWhatsApp(): Promise<{ message: string }> {
-  return fetchApi<{ message: string }>("/api/whatsapp/logout", { method: "POST" })
+export async function getWhatsAppLine(id: string): Promise<WhatsAppLine> {
+  return fetchApi<WhatsAppLine>(`/api/whatsapp/lines/${id}`)
+}
+
+export async function deleteWhatsAppLine(id: string): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>(`/api/whatsapp/lines/${id}`, { method: "DELETE" })
+}
+
+export async function reconnectWhatsAppLine(id: string): Promise<{ status: string }> {
+  return fetchApi<{ status: string }>(`/api/whatsapp/lines/${id}/reconnect`, { method: "POST" })
 }
 
 export interface WhatsAppMedia {
@@ -196,6 +227,7 @@ export interface WhatsAppMedia {
 
 export async function startWhatsAppCampaign(body: {
   listId: string
+  lineId?: string
   messageTemplate: string
   messageTemplateNoWebsite?: string
   minDelaySec?: number
@@ -212,6 +244,31 @@ export async function startWhatsAppCampaign(body: {
 
 export async function stopWhatsAppCampaign(): Promise<{ message: string; campaign: WhatsAppCampaign }> {
   return fetchApi("/api/whatsapp/campaign/stop", { method: "POST" })
+}
+
+export type SendSingleResult =
+  | { ok: true; lineId: string }
+  | { ok: false; reason: "no_line"; hint: string }
+  | { ok: false; reason: "not_ready"; lines: WhatsAppLine[] }
+  | { ok: false; reason: "no_phone" | "no_whatsapp" | "send_failed"; error?: string }
+
+export async function sendWhatsAppSingle(body: {
+  businessId: string
+  message: string
+  lineId?: string
+  media?: WhatsAppMedia
+}): Promise<SendSingleResult> {
+  const headers = await getAuthHeaders()
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+  const res = await fetch(`${base.replace(/\/$/, "")}/api/whatsapp/send-single`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (res.ok) return { ok: true, lineId: data?.lineId ?? "" }
+  if (res.status === 409) return data as SendSingleResult
+  return { ok: false, reason: "send_failed", error: data?.error || data?.message || "Hata" }
 }
 
 export interface WhatsAppOutreachRow {
