@@ -9,10 +9,11 @@
 LeadPin is a high-performance, automated lead generation platform that extracts business data from Google Maps and manages outreach sequences. It streamlines the process of finding potential B2B clients by providing detailed contact information and categorization.
 
 ### 🚀 Key Features
+- **WhatsApp Automation**: Seamlessly contact leads via WhatsApp with pre-filled messages and automatic outreach tracking.
+- **Bulk Outreach Support**: Optimized workflow for efficient high-volume lead contact management.
 - **Smart Scraper**: Automated Google Maps data extraction using optimized Puppeteer instances.
 - **Lead Management**: Organize businesses into custom lists for targeted outreach.
 - **Interactive Dashboard**: Real-time statistics, filtering by city, rating, and contact availability.
-- **WhatsApp Integration**: Track outreach attempts with specialized WhatsApp logs.
 - **Supabase Backend**: Fast, secure data management with real-time updates.
 
 ### 🛠 Tech Stack
@@ -34,10 +35,11 @@ LeadPin is a high-performance, automated lead generation platform that extracts 
 LeadPin, Google Haritalar'dan işletme verilerini çeken ve erişim süreçlerini yöneten yüksek performanslı bir otomatik lead (potansiyel müşteri) bulma platformudur. Detaylı iletişim bilgileri ve kategorizasyon sağlayarak B2B müşteri bulma sürecini kolaylaştırır.
 
 ### 🚀 Öne Çıkan Özellikler
+- **WhatsApp Otomasyonu**: Hazır mesaj şablonları ve otomatik erişim takibi ile işletmelere WhatsApp üzerinden sorunsuz bir şekilde ulaşın.
+- **Seri Erişim Desteği**: Yüksek hacimli müşteri adayı yönetimi için optimize edilmiş hızlı iletişim akışı.
 - **Akıllı Tarayıcı**: Optimize edilmiş Puppeteer örnekleri ile otomatik Google Haritalar veri çekme.
 - **Lead Yönetimi**: İşletmeleri hedefli kampanyalar için özel listeler halinde organize edin.
 - **İnteraktif Panel**: Gerçek zamanlı istatistikler; şehir, puan ve iletişim bilgisine göre filtreleme.
-- **WhatsApp Entegrasyonu**: Özel WhatsApp logları ile müşteri adaylarına erişim denemelerini takip edin.
 - **Supabase Altyapısı**: Gerçek zamanlı güncellemelerle hızlı ve güvenli veri yönetimi.
 
 ### 🛠 Teknoloji Yığını
