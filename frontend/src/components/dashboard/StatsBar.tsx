@@ -5,6 +5,10 @@ import {
   Phone,
   Globe,
   Calendar,
+  Send,
+  MousePointerClick,
+  Reply,
+  Trophy,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { useQuery } from "@tanstack/react-query"
@@ -45,6 +49,35 @@ export function StatsBar() {
       icon: Calendar,
       color: "text-amber-400",
       bgColor: "bg-amber-400/10",
+    },
+    // Dönüşüm hunisi: gönderim → tıklama → cevap → dönüşüm
+    {
+      label: "Gönderilen Mesaj",
+      value: stats?.funnel?.messagesSent ?? 0,
+      icon: Send,
+      color: "text-emerald-400",
+      bgColor: "bg-emerald-400/10",
+    },
+    {
+      label: "Link Tıklaması",
+      value: stats?.funnel?.linkClicks ?? 0,
+      icon: MousePointerClick,
+      color: "text-purple-400",
+      bgColor: "bg-purple-400/10",
+    },
+    {
+      label: "Cevap Veren",
+      value: stats?.funnel?.replied ?? 0,
+      icon: Reply,
+      color: "text-amber-400",
+      bgColor: "bg-amber-400/10",
+    },
+    {
+      label: "Dönüşen",
+      value: stats?.funnel?.converted ?? 0,
+      icon: Trophy,
+      color: "text-blue-400",
+      bgColor: "bg-blue-400/10",
     },
   ]
 

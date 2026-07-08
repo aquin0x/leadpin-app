@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import { supabase } from '../utils/supabase';
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  // Token yalnızca Authorization header'dan okunur; query-string token'ları
+  // log/proxy kayıtlarına sızdığı için desteklenmiyor (SSE için /api/sse-ticket kullanılır).
   const authHeader = req.headers.authorization;
-  const queryToken = req.query.token as string;
 
-  let token = authHeader ? authHeader.split(' ')[1] : queryToken;
+  let token = authHeader ? authHeader.split(' ')[1] : undefined;
 
   if (!token) {
     console.log('Auth Hatası: Token bulunamadı');

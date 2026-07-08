@@ -27,6 +27,7 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     district: searchParams.get("district") || "",
     neighborhood: searchParams.get("neighborhood") || "",
     category: searchParams.get("category") || "",
+    status: searchParams.get("status") || "",
     hasWebsite: searchParams.get("hasWebsite") === "true",
     hasPhone: searchParams.get("hasPhone") === "true",
     minRating: searchParams.get("minRating") || "",
@@ -40,6 +41,7 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
       district: searchParams.get("district") || "",
       neighborhood: searchParams.get("neighborhood") || "",
       category: searchParams.get("category") || "",
+      status: searchParams.get("status") || "",
       hasWebsite: searchParams.get("hasWebsite") === "true",
       hasPhone: searchParams.get("hasPhone") === "true",
       minRating: searchParams.get("minRating") || "",
@@ -72,6 +74,7 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     localFilters.district !== (searchParams.get("district") || "") ||
     localFilters.neighborhood !== (searchParams.get("neighborhood") || "") ||
     localFilters.category !== (searchParams.get("category") || "") ||
+    localFilters.status !== (searchParams.get("status") || "") ||
     localFilters.hasWebsite !== (searchParams.get("hasWebsite") === "true") ||
     localFilters.hasPhone !== (searchParams.get("hasPhone") === "true") ||
     localFilters.minRating !== (searchParams.get("minRating") || "") ||
@@ -81,8 +84,9 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
     searchParams.get("city") || 
     searchParams.get("district") || 
     searchParams.get("neighborhood") || 
-    searchParams.get("category") || 
-    searchParams.get("hasWebsite") === "true" || 
+    searchParams.get("category") ||
+    searchParams.get("status") ||
+    searchParams.get("hasWebsite") === "true" ||
     searchParams.get("hasPhone") === "true" || 
     searchParams.get("minRating") || 
     searchParams.get("minReviews")
@@ -161,6 +165,25 @@ export function FilterBar({ onOpenScrapeModal, onRefresh }: FilterBarProps) {
             onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
             className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-200 placeholder:text-zinc-600"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="filter-status" className="text-xs text-zinc-500 font-bold uppercase">
+            Durum
+          </Label>
+          <select
+            id="filter-status"
+            value={localFilters.status}
+            onChange={(e) => setLocalFilters(prev => ({ ...prev, status: e.target.value }))}
+            className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-800/50 px-2 text-sm text-zinc-200 outline-none"
+          >
+            <option value="">Tümü</option>
+            <option value="new">Yeni</option>
+            <option value="contacted">Ulaşıldı</option>
+            <option value="replied">Cevap Verdi</option>
+            <option value="converted">Dönüştü</option>
+            <option value="rejected">Reddetti</option>
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

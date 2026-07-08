@@ -8,6 +8,7 @@ import { BusinessInfoCard } from "@/components/business/BusinessInfoCard"
 import { ContactSection } from "@/components/business/ContactSection"
 import { OutreachPanel } from "@/components/business/OutreachPanel"
 import { OutreachHistory } from "@/components/business/OutreachHistory"
+import { NotesCard } from "@/components/business/NotesCard"
 import { useBusiness } from "@/hooks/useBusiness"
 
 export default function BusinessDetailPage() {
@@ -76,6 +77,7 @@ export default function BusinessDetailPage() {
       {/* Content */}
       <main className="mx-auto max-w-4xl space-y-6 p-4 pt-6">
         <BusinessInfoCard business={business} />
+        <NotesCard business={business} />
         <OutreachPanel business={business} />
         <OutreachHistory logs={business.outreach_logs || []} />
       </main>

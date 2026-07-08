@@ -11,6 +11,8 @@ import {
   ChevronRight,
   ListPlus,
   Check,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react"
 import {
   Table,
@@ -40,7 +42,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { formatPhone, formatRating } from "@/lib/utils"
 import { generateMessages } from "@/lib/message-generator"
 import { useWhatsAppOutreach } from "@/hooks/useOutreach"
-import type { Business, PaginatedBusinesses } from "@/types"
+import { getBusinesses, updateBusiness } from "@/lib/api-client"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
+import type { Business, BusinessFilters, BusinessStatus, PaginatedBusinesses } from "@/types"
 import toast from "react-hot-toast"
 import { cn } from "@/lib/utils"
 import { AddToListModal } from "./AddToListModal"
@@ -52,9 +57,89 @@ interface LeadTableProps {
   limit: number
   sortBy: string
   sortOrder: "asc" | "desc"
+  filters?: BusinessFilters
   onPageChange: (page: number) => void
   onLimitChange: (limit: number) => void
   onSort: (field: string) => void
+}
+
+export const STATUS_OPTIONS: { value: BusinessStatus; label: string; className: string }[] = [
+  { value: "new", label: "Yeni", className: "text-zinc-300" },
+  { value: "contacted", label: "Ulaşıldı", className: "text-blue-400" },
+  { value: "replied", label: "Cevap Verdi", className: "text-amber-400" },
+  { value: "converted", label: "Dönüştü", className: "text-emerald-400" },
+  { value: "rejected", label: "Reddetti", className: "text-red-400" },
+]
+
+function LeadStatusSelect({ business }: { business: Business }) {
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: (status: BusinessStatus) => updateBusiness(business.id, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.businesses.all })
+      toast.success("Durum güncellendi", { duration: 1200 })
+    },
+    onError: () => toast.error("Durum güncellenemedi"),
+  })
+
+  const current = STATUS_OPTIONS.find((o) => o.value === (business.status || "new")) || STATUS_OPTIONS[0]
+
+  return (
+    <select
+      value={current.value}
+      disabled={mutation.isPending}
+      onChange={(e) => mutation.mutate(e.target.value as BusinessStatus)}
+      onClick={(e) => e.stopPropagation()}
+      className={cn(
+        "w-full rounded-md border border-zinc-700/60 bg-zinc-800/60 px-1.5 py-1 text-xs font-medium outline-none transition-colors hover:border-zinc-600 disabled:opacity-50",
+        current.className
+      )}
+    >
+      {STATUS_OPTIONS.map((o) => (
+        <option key={o.value} value={o.value} className="bg-zinc-900 text-zinc-200">
+          {o.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+// Aktif filtrelerle eşleşen TÜM sonuçları sayfa sayfa çekip Excel dosyası indirir.
+async function exportToExcel(filters: BusinessFilters | undefined, total: number) {
+  const XLSX = await import("xlsx")
+  const pageSize = 1000
+  const all: Business[] = []
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+  for (let p = 1; p <= pages; p++) {
+    const res = await getBusinesses({ ...(filters || {}), page: p, limit: pageSize })
+    all.push(...res.data)
+    if (all.length >= res.total) break
+  }
+
+  const statusLabel = (s?: string) => STATUS_OPTIONS.find((o) => o.value === s)?.label || "Yeni"
+  const rows = all.map((b) => ({
+    "İşletme Adı": b.name,
+    "Kategori": b.category || "",
+    "Şehir": b.city || "",
+    "İlçe": b.district || "",
+    "Mahalle": b.neighborhood || "",
+    "Adres": b.address || "",
+    "Telefon": b.phone || "",
+    "Web Sitesi": b.website || "",
+    "Puan": b.rating ?? "",
+    "Yorum Sayısı": b.reviews_count ?? 0,
+    "Durum": statusLabel(b.status),
+    "Notlar": b.notes || "",
+    "Google Maps": b.google_maps_url || "",
+    "Eklenme Tarihi": b.created_at ? new Date(b.created_at).toLocaleDateString("tr-TR") : "",
+  }))
+
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Leads")
+  const date = new Date().toISOString().slice(0, 10)
+  XLSX.writeFile(wb, `leadpin-export-${date}.xlsx`)
+  return rows.length
 }
 
 function WhatsAppPopover({ business }: { business: Business }) {
@@ -144,12 +229,28 @@ export function LeadTable({
   limit,
   sortBy,
   sortOrder,
+  filters,
   onPageChange,
   onLimitChange,
   onSort,
 }: LeadTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    if (!data || data.total === 0) return
+    setExporting(true)
+    try {
+      const count = await exportToExcel(filters, data.total)
+      toast.success(`${count} lead Excel'e aktarıldı`)
+    } catch (e) {
+      console.error(e)
+      toast.error("Excel aktarımı başarısız oldu")
+    } finally {
+      setExporting(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -210,8 +311,25 @@ export function LeadTable({
 
   return (
     <div className="space-y-4 relative">
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={exporting || !data || data.total === 0}
+          className="border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:text-emerald-400"
+        >
+          {exporting ? (
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+          ) : (
+            <FileSpreadsheet className="mr-1.5 size-3.5" />
+          )}
+          {exporting ? "Aktarılıyor..." : `Excel'e Aktar (${data.total.toLocaleString("tr-TR")})`}
+        </Button>
+      </div>
+
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-sm overflow-x-auto">
-        <Table className="table-fixed min-w-[1200px] w-full">
+        <Table className="table-fixed min-w-[1320px] w-full">
           <TableHeader>
             <TableRow className="border-zinc-800 hover:bg-transparent">
               <TableHead className="w-[45px] px-4">
@@ -275,6 +393,12 @@ export function LeadTable({
               >
                 <div className="flex items-center justify-center">Yorum <SortIcon field="reviews_count" /></div>
               </TableHead>
+              <TableHead
+                className="w-[125px] text-zinc-400 cursor-pointer hover:text-zinc-200"
+                onClick={() => onSort("status")}
+              >
+                <div className="flex items-center">Durum <SortIcon field="status" /></div>
+              </TableHead>
               <TableHead className="w-[120px] text-zinc-400 text-right">İşlemler</TableHead>
             </TableRow>
           </TableHeader>
@@ -331,6 +455,9 @@ export function LeadTable({
                   </TableCell>
                   <TableCell className="text-center text-sm text-zinc-400">
                     {business.reviews_count ? business.reviews_count.toLocaleString('tr-TR') : '0'}
+                  </TableCell>
+                  <TableCell>
+                    <LeadStatusSelect business={business} />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1.5">

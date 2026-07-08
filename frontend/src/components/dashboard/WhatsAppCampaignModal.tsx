@@ -16,8 +16,12 @@ import {
   listWhatsAppLines,
   startWhatsAppCampaign,
   stopWhatsAppCampaign,
+  listTemplates,
+  createTemplate,
+  deleteTemplate,
   type WhatsAppLine,
   type WhatsAppCampaign,
+  type MessageTemplate,
 } from "@/lib/api-client"
 import { api } from "@/lib/api-client"
 import toast from "react-hot-toast"
@@ -36,34 +40,7 @@ const DEFAULT_TEMPLATE =
 const DEFAULT_TEMPLATE_NO_WEBSITE =
   "{greeting} {name}, Google Haritalar profilinizi inceledim. Henüz bir web sitenizin olmadığını fark ettim. Size özel modern bir site ve randevu sistemiyle müşteri trafiğinizi artırabiliriz. İlgilenir misiniz?"
 
-interface SavedTemplate {
-  id: string
-  name: string
-  message: string
-  messageNoWebsite: string
-  createdAt: number
-}
-
-const LS_KEY = "whatsapp_saved_templates_v1"
 const MAX_MEDIA_BYTES = 20 * 1024 * 1024 // 20MB
-
-function loadSavedTemplates(): SavedTemplate[] {
-  if (typeof window === "undefined") return []
-  try {
-    const raw = window.localStorage.getItem(LS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function persistSavedTemplates(list: SavedTemplate[]) {
-  try {
-    window.localStorage.setItem(LS_KEY, JSON.stringify(list))
-  } catch {}
-}
 
 async function fileToBase64(file: File): Promise<string> {
   const buf = await file.arrayBuffer()
@@ -85,16 +62,19 @@ export function WhatsAppCampaignModal({
 }: Props) {
   const [lines, setLines] = useState<WhatsAppLine[]>([])
   const [campaign, setCampaign] = useState<WhatsAppCampaign | null>(null)
-  const [selectedLineId, setSelectedLineId] = useState<string>("")
+  const [selectedLineIds, setSelectedLineIds] = useState<string[]>([])
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE)
   const [templateNoWebsite, setTemplateNoWebsite] = useState(DEFAULT_TEMPLATE_NO_WEBSITE)
   const [minDelay, setMinDelay] = useState(60)
   const [maxDelay, setMaxDelay] = useState(120)
   const [coffeeEvery, setCoffeeEvery] = useState(20)
   const [coffeeMin, setCoffeeMin] = useState(15)
+  const [sendStartHour, setSendStartHour] = useState(0)
+  const [sendEndHour, setSendEndHour] = useState(0)
+  const [dailyLimit, setDailyLimit] = useState(0)
   const [starting, setStarting] = useState(false)
 
-  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([])
+  const [savedTemplates, setSavedTemplates] = useState<MessageTemplate[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("__default__")
   const [mediaFile, setMediaFile] = useState<File | null>(null)
 
@@ -111,7 +91,10 @@ export function WhatsAppCampaignModal({
   }, [mediaPreview])
 
   useEffect(() => {
-    if (open) setSavedTemplates(loadSavedTemplates())
+    if (!open) return
+    listTemplates()
+      .then(setSavedTemplates)
+      .catch(() => toast.error("Şablonlar yüklenemedi"))
   }, [open])
 
   useEffect(() => {
@@ -127,10 +110,11 @@ export function WhatsAppCampaignModal({
         if (cancelled) return
         setLines(ls)
         setCampaign(camp.campaign ?? null)
-        setSelectedLineId((prev) => {
-          if (prev && ls.some((l) => l.id === prev)) return prev
-          const ready = ls.find((l) => l.status === "ready")
-          return ready?.id ?? ""
+        setSelectedLineIds((prev) => {
+          // Seçimi koru; hiç seçim yoksa tüm hazır hatları varsayılan seç (rotasyon)
+          const valid = prev.filter((id) => ls.some((l) => l.id === id))
+          if (valid.length > 0) return valid
+          return ls.filter((l) => l.status === "ready").map((l) => l.id)
         })
       } catch {
         // ignore polling errors
@@ -154,38 +138,41 @@ export function WhatsAppCampaignModal({
     }
     const t = savedTemplates.find((s) => s.id === id)
     if (t) {
-      setTemplate(t.message)
-      setTemplateNoWebsite(t.messageNoWebsite)
+      setTemplate(t.template)
+      setTemplateNoWebsite(t.template_no_website || "")
     }
   }
 
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     const name = prompt("Şablon adı:")
     if (!name?.trim()) return
-    const t: SavedTemplate = {
-      id: `tpl-${Date.now()}`,
-      name: name.trim(),
-      message: template,
-      messageNoWebsite: templateNoWebsite,
-      createdAt: Date.now(),
+    try {
+      const t = await createTemplate({
+        name: name.trim(),
+        template,
+        template_no_website: templateNoWebsite || undefined,
+      })
+      setSavedTemplates((prev) => [t, ...prev])
+      setSelectedTemplateId(t.id)
+      toast.success("Şablon kaydedildi")
+    } catch {
+      toast.error("Şablon kaydedilemedi")
     }
-    const next = [...savedTemplates, t]
-    setSavedTemplates(next)
-    persistSavedTemplates(next)
-    setSelectedTemplateId(t.id)
-    toast.success("Şablon kaydedildi")
   }
 
-  const handleDeleteTemplate = () => {
+  const handleDeleteTemplate = async () => {
     if (selectedTemplateId === "__default__") return
     if (!confirm("Bu şablonu silmek istiyor musunuz?")) return
-    const next = savedTemplates.filter((s) => s.id !== selectedTemplateId)
-    setSavedTemplates(next)
-    persistSavedTemplates(next)
-    setSelectedTemplateId("__default__")
-    setTemplate(DEFAULT_TEMPLATE)
-    setTemplateNoWebsite(DEFAULT_TEMPLATE_NO_WEBSITE)
-    toast.success("Şablon silindi")
+    try {
+      await deleteTemplate(selectedTemplateId)
+      setSavedTemplates((prev) => prev.filter((s) => s.id !== selectedTemplateId))
+      setSelectedTemplateId("__default__")
+      setTemplate(DEFAULT_TEMPLATE)
+      setTemplateNoWebsite(DEFAULT_TEMPLATE_NO_WEBSITE)
+      toast.success("Şablon silindi")
+    } catch {
+      toast.error("Şablon silinemedi")
+    }
   }
 
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,13 +211,16 @@ export function WhatsAppCampaignModal({
       }
       await startWhatsAppCampaign({
         listId,
-        lineId: selectedLineId || undefined,
+        lineIds: selectedLineIds,
         messageTemplate: template,
         messageTemplateNoWebsite: templateNoWebsite || undefined,
         minDelaySec: minDelay,
         maxDelaySec: maxDelay,
         coffeeBreakEvery: coffeeEvery,
         coffeeBreakMinutes: coffeeMin,
+        sendStartHour,
+        sendEndHour,
+        dailyLimit,
         media,
       })
       toast.success("Kampanya başlatıldı")
@@ -251,7 +241,9 @@ export function WhatsAppCampaignModal({
   }
 
   const readyLines = lines.filter((l) => l.status === "ready")
-  const selectedLine = lines.find((l) => l.id === selectedLineId) || null
+  const selectedReadyCount = selectedLineIds.filter(
+    (id) => lines.find((l) => l.id === id)?.status === "ready"
+  ).length
   const isRunning = campaign?.status === "running"
   const progress = campaign && campaign.total > 0
     ? Math.round((campaign.processed / campaign.total) * 100)
@@ -270,24 +262,45 @@ export function WhatsAppCampaignModal({
         <div className="space-y-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-xs text-zinc-500 uppercase tracking-wider">Gönderim Hattı</div>
+              <div className="text-xs text-zinc-500 uppercase tracking-wider">
+                Gönderim Hatları (rotasyon)
+              </div>
               {readyLines.length === 0 && (
                 <span className="text-xs text-amber-400">Hesap'tan WhatsApp hattı ekleyin</span>
               )}
             </div>
-            <select
-              value={selectedLineId}
-              onChange={(e) => setSelectedLineId(e.target.value)}
-              disabled={readyLines.length === 0}
-              className="w-full rounded border border-zinc-700 bg-zinc-900 text-sm text-zinc-200 px-2 py-2 disabled:opacity-50"
-            >
-              {readyLines.length === 0 && <option value="">Hazır hat yok</option>}
-              {readyLines.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label}{l.phone ? ` — ${l.phone}` : ""}
-                </option>
-              ))}
-            </select>
+            {readyLines.length === 0 ? (
+              <p className="text-sm text-zinc-500">Hazır hat yok</p>
+            ) : (
+              <div className="space-y-1.5">
+                {readyLines.map((l) => {
+                  const checked = selectedLineIds.includes(l.id)
+                  return (
+                    <label
+                      key={l.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 hover:border-zinc-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) =>
+                          setSelectedLineIds((prev) =>
+                            e.target.checked ? [...prev, l.id] : prev.filter((id) => id !== l.id)
+                          )
+                        }
+                        className="accent-emerald-500"
+                      />
+                      <span>{l.label}{l.phone ? ` — ${l.phone}` : ""}</span>
+                    </label>
+                  )
+                })}
+                {selectedReadyCount > 1 && (
+                  <p className="text-xs text-zinc-500">
+                    Mesajlar {selectedReadyCount} hat arasında sırayla dağıtılır (ban riskini azaltır).
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {campaign && (
@@ -420,13 +433,44 @@ export function WhatsAppCampaignModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label className="text-xs text-zinc-500">Başlangıç saati</Label>
+              <Input
+                type="number" min={0} max={23}
+                value={sendStartHour}
+                onChange={(e) => setSendStartHour(Math.min(23, Math.max(0, Number(e.target.value) || 0)))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-zinc-500">Bitiş saati</Label>
+              <Input
+                type="number" min={0} max={23}
+                value={sendEndHour}
+                onChange={(e) => setSendEndHour(Math.min(23, Math.max(0, Number(e.target.value) || 0)))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-zinc-500">Günlük limit (0=∞)</Label>
+              <Input
+                type="number" min={0}
+                value={dailyLimit}
+                onChange={(e) => setDailyLimit(Math.max(0, Number(e.target.value) || 0))}
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-zinc-600">
+            Saat penceresi: mesajlar yalnızca bu saatler arasında gönderilir (örn. 09-18).
+            İki saat de 0 ise sınırsızdır. Pencere dışında kampanya bekler; günlük limit dolunca durur.
+          </p>
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Kapat
             </Button>
             <Button
               onClick={handleStart}
-              disabled={!selectedLine || selectedLine.status !== "ready" || isRunning || starting || leadCount === 0}
+              disabled={selectedReadyCount === 0 || isRunning || starting || leadCount === 0}
               className="bg-emerald-600 hover:bg-emerald-500"
             >
               {starting ? (

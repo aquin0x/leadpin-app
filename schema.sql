@@ -1,6 +1,10 @@
+-- NOT: Bu dosya sıfırdan kurulum içindir. Mevcut veritabanları için migrations/ klasörünü
+-- sırayla uygulayın (001, 002, ...). Yeni tablolar için migrations/002_whatsapp_infra.sql'e bakın.
+
 -- Businesses Table
 CREATE TABLE IF NOT EXISTS public.businesses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID DEFAULT auth.uid(),
     name TEXT NOT NULL,
     category TEXT,
     city TEXT,
@@ -11,16 +15,18 @@ CREATE TABLE IF NOT EXISTS public.businesses (
     website TEXT,
     rating DECIMAL(3,2),
     reviews_count INTEGER DEFAULT 0,
-    google_maps_url TEXT UNIQUE,
+    google_maps_url TEXT,
     short_id TEXT UNIQUE,
     short_id_clicks INTEGER NOT NULL DEFAULT 0,
     short_id_last_click_at TIMESTAMP WITH TIME ZONE,
     email TEXT,
     instagram TEXT,
     facebook TEXT,
+    notes TEXT,
     status TEXT DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'replied', 'converted', 'rejected')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (user_id, google_maps_url)
 );
 
 -- Scrape Jobs (For progress tracking via SSE)
@@ -88,7 +94,32 @@ CREATE POLICY "Users can only see their own logs" ON public.outreach_logs
 CREATE POLICY "Users can only see their own lists" ON public.lists 
     FOR ALL TO authenticated USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can manage items in their lists" ON public.list_items 
+CREATE POLICY "Users can manage items in their lists" ON public.list_items
     FOR ALL TO authenticated USING (
         EXISTS (SELECT 1 FROM public.lists WHERE id = list_id AND user_id = auth.uid())
     );
+
+-- Indexes & updated_at trigger (bkz. migrations/001_sync_schema.sql)
+CREATE INDEX IF NOT EXISTS businesses_user_city_idx ON public.businesses (user_id, city);
+CREATE INDEX IF NOT EXISTS businesses_user_status_idx ON public.businesses (user_id, status);
+CREATE INDEX IF NOT EXISTS businesses_user_created_idx ON public.businesses (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS outreach_logs_user_type_idx ON public.outreach_logs (user_id, type, created_at DESC);
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS phone_digits TEXT
+    GENERATED ALWAYS AS (regexp_replace(coalesce(phone, ''), '\D', '', 'g')) STORED;
+CREATE INDEX IF NOT EXISTS businesses_phone_digits_idx ON public.businesses (phone_digits);
+
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = timezone('utc'::text, now());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS businesses_set_updated_at ON public.businesses;
+CREATE TRIGGER businesses_set_updated_at
+    BEFORE UPDATE ON public.businesses
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- WhatsApp altyapısı, şablonlar, karaliste, gelen kutusu: migrations/002_whatsapp_infra.sql
+-- (sıfırdan kurulumda o dosyayı da çalıştırın)

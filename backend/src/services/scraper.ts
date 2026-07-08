@@ -139,7 +139,45 @@ function generateShortId(): string {
   return 'a1' + alphabet[Math.floor(Math.random() * alphabet.length)] + alphabet[Math.floor(Math.random() * alphabet.length)];
 }
 
+// Restart sonrası 'pending'/'running' takılı kalan işleri kapat.
+export async function recoverStaleScrapeJobs(): Promise<void> {
+  const { error, count } = await supabase
+    .from('scrape_jobs')
+    .update({ status: 'failed', error_message: 'Sunucu yeniden başlatıldı, iş yarıda kaldı' }, { count: 'exact' })
+    .in('status', ['pending', 'running']);
+  if (error) throw new Error(error.message);
+  if (count) console.log(`[Scraper] ${count} yarım kalmış iş 'failed' olarak işaretlendi.`);
+}
+
 export class ScraperService {
+  // Aynı anda tek Chrome açılsın diye basit in-process kuyruk.
+  private static queue: ScrapeParams[] = [];
+  private static activeCount = 0;
+  private static readonly MAX_CONCURRENT = Math.max(1, Number(process.env.SCRAPER_CONCURRENCY || 1));
+
+  // Kuyruğa ekler; önünde bekleyen iş sayısını döner (0 => hemen başlar).
+  static enqueue(params: ScrapeParams): number {
+    const position = this.queue.length + this.activeCount;
+    this.queue.push(params);
+    void this.processQueue();
+    return Math.max(0, position - (this.MAX_CONCURRENT - 1));
+  }
+
+  private static async processQueue(): Promise<void> {
+    if (this.activeCount >= this.MAX_CONCURRENT) return;
+    const next = this.queue.shift();
+    if (!next) return;
+    this.activeCount++;
+    try {
+      await this.startScraping(next);
+    } catch (e: any) {
+      console.error(`[Scraper] Job ${next.jobId} beklenmedik hata:`, e?.message);
+    } finally {
+      this.activeCount--;
+      void this.processQueue();
+    }
+  }
+
   static async startScraping({ jobId, userId, category, city, district, neighborhood }: ScrapeParams) {
     const { default: puppeteer } = await import('puppeteer');
     const headless = process.env.PUPPETEER_HEADLESS !== 'false';
@@ -254,15 +292,25 @@ export class ScraperService {
           console.log("Feed selector not found, might be a direct hit or slow load.");
         });
 
-        // Scroll with role="feed" targeting
+        // Sonuç kalmayana kadar scroll: sabit 20 iterasyon yerine, yeni kart gelmeyi
+        // bırakana ya da Google'ın "listenin sonu" işaretine kadar devam et (üst sınırlı).
         await page.evaluate(async () => {
-          const distance = 100;
           const feed = document.querySelector('div[role="feed"]');
           if (!feed) return;
-          
-          for(let i=0; i<20; i++) { // Scroll a bit for each category
-            feed.scrollBy(0, distance * 5);
-            await new Promise(r => setTimeout(r, 400));
+
+          let lastCount = 0;
+          let stagnantRounds = 0;
+          for (let i = 0; i < 80 && stagnantRounds < 4; i++) {
+            feed.scrollBy(0, 2000);
+            await new Promise(r => setTimeout(r, 600));
+
+            // Google feed sonunda "Listenin sonuna ulaştınız" bloğu (.HlvSq) gösterir
+            if (feed.querySelector('.HlvSq')) break;
+
+            const count = feed.querySelectorAll('div[role="article"]').length;
+            if (count <= lastCount) stagnantRounds++;
+            else stagnantRounds = 0;
+            lastCount = count;
           }
         });
 
@@ -284,7 +332,17 @@ export class ScraperService {
 
       const results = Array.from(allUniqueResults.values());
       console.log(`Found ${results.length} total unique potential leads.`);
-      
+
+      // 0 sonuç: ya gerçekten sonuç yok ya da Google DOM yapısı değişti.
+      // Sessizce 'completed' göstermek yerine işi açıkça failed yap ki kullanıcı fark etsin.
+      if (results.length === 0) {
+        await supabase.from('scrape_jobs').update({
+          status: 'failed',
+          error_message: 'Hiç sonuç bulunamadı. Arama terimini kontrol edin; sorun devam ederse Google Maps sayfa yapısı değişmiş olabilir.',
+        }).eq('id', jobId);
+        return;
+      }
+
       // Update Total Leads in DB immediately so panel doesn't show 0
       await supabase.from('scrape_jobs').update({
         total_leads: results.length,

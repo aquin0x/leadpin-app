@@ -52,7 +52,17 @@ LeadPin, Google Haritalar'dan işletme verilerini çeken ve erişim süreçlerin
 1. Projeyi klonlayın: `git clone <repo-url>`
 2. `frontend` ve `backend` klasörlerinde bağımlılıkları yükleyin: `npm install`
 3. `.env` dosyalarını yapılandırın (Supabase URL/Key, Port).
-4. Geliştirici sunucularını çalıştırın: `npm run dev`
+4. Veritabanını hazırlayın:
+   - Sıfırdan kurulum: `schema.sql` + `migrations/002_whatsapp_infra.sql` dosyalarını Supabase SQL Editor'da çalıştırın.
+   - Mevcut kurulum: `migrations/` klasöründeki dosyaları sırayla (001, 002, ...) çalıştırın.
+5. Geliştirici sunucularını çalıştırın: `npm run dev`
+
+### 📬 Ek Özellikler
+- **Gelen Kutusu & Otomatik Takip**: Lead WhatsApp'tan cevap verdiğinde durumu otomatik "Cevap Verdi" olur; "STOP/İPTAL" yazanlar karalisteye alınır ve bir daha aranmaz.
+- **Çoklu Hat Rotasyonu**: Kampanya mesajları seçilen hatlar arasında sırayla dağıtılır.
+- **Saat Penceresi & Günlük Limit**: Mesajlar yalnızca belirlenen saat aralığında gönderilir, günlük limit dolunca kampanya durur.
+- **Excel Export**: Filtrelenmiş lead listesini tek tıkla `.xlsx` olarak indirin.
+- **Mini-CRM**: Lead durumu (Yeni → Ulaşıldı → Cevap Verdi → Dönüştü/Reddetti), not alanı ve dönüşüm hunisi istatistikleri.
 
 ---
 *Developed by DeepMind Advanced Agentic Coding for the future of B2B Lead Gen.*

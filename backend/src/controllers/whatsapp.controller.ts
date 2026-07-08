@@ -9,6 +9,7 @@ import {
   startCampaign,
   stopCampaign,
   getCampaign,
+  listCampaigns,
   sendSingleMessage,
 } from '../services/whatsapp';
 
@@ -18,7 +19,7 @@ function userId(req: Request): string {
 
 export const getLines = async (req: Request, res: Response) => {
   const uid = userId(req);
-  return res.json({ lines: listLines(uid) });
+  return res.json({ lines: await listLines(uid) });
 };
 
 export const createLine = async (req: Request, res: Response) => {
@@ -35,24 +36,24 @@ export const createLine = async (req: Request, res: Response) => {
 
 export const getLine = async (req: Request, res: Response) => {
   const uid = userId(req);
-  const line = getLineStatus(uid, req.params.id);
+  const line = await getLineStatus(uid, String(req.params.id));
   if (!line) return res.status(404).json({ message: 'Hat bulunamadı' });
   return res.json(line);
 };
 
 export const deleteLine = async (req: Request, res: Response) => {
   const uid = userId(req);
-  const ok = await removeLine(uid, req.params.id);
+  const ok = await removeLine(uid, String(req.params.id));
   if (!ok) return res.status(404).json({ message: 'Hat bulunamadı' });
   return res.json({ message: 'Hat silindi' });
 };
 
 export const reconnectLine = async (req: Request, res: Response) => {
   const uid = userId(req);
-  const ok = await logoutLine(uid, req.params.id);
+  const ok = await logoutLine(uid, String(req.params.id));
   if (!ok) return res.status(404).json({ message: 'Hat bulunamadı' });
   // Yeniden initialize et ki yeni QR çıksın
-  const session = await initLine(uid, req.params.id);
+  const session = await initLine(uid, String(req.params.id));
   return res.json({ status: session?.status ?? 'disconnected' });
 };
 
@@ -62,12 +63,16 @@ export const startWhatsAppCampaign = async (req: Request, res: Response) => {
     const {
       listId,
       lineId,
+      lineIds,
       messageTemplate,
       messageTemplateNoWebsite,
       minDelaySec,
       maxDelaySec,
       coffeeBreakEvery,
       coffeeBreakMinutes,
+      sendStartHour,
+      sendEndHour,
+      dailyLimit,
       media,
     } = req.body || {};
 
@@ -75,16 +80,29 @@ export const startWhatsAppCampaign = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'listId ve messageTemplate zorunlu' });
     }
 
+    // Geriye uyumluluk: tekil lineId da kabul edilir
+    const pool: string[] = Array.isArray(lineIds) && lineIds.length > 0
+      ? lineIds
+      : (lineId ? [lineId] : []);
+
+    const clampHour = (v: any) => {
+      const n = Number(v);
+      return Number.isInteger(n) && n >= 0 && n <= 23 ? n : 0;
+    };
+
     const campaign = await startCampaign({
       userId: uid,
       listId,
-      lineId,
+      lineIds: pool,
       messageTemplate,
       messageTemplateNoWebsite,
       minDelaySec,
       maxDelaySec,
       coffeeBreakEvery,
       coffeeBreakMinutes,
+      sendStartHour: clampHour(sendStartHour),
+      sendEndHour: clampHour(sendEndHour),
+      dailyLimit: Math.max(0, Number(dailyLimit) || 0),
       media,
     });
     return res.status(201).json(campaign);
@@ -125,6 +143,12 @@ export const sendSingle = async (req: Request, res: Response) => {
 
 export const getCampaignStatus = async (req: Request, res: Response) => {
   const uid = userId(req);
-  const campaign = getCampaign(uid);
+  const campaign = await getCampaign(uid);
   return res.json({ campaign });
+};
+
+export const getCampaignHistory = async (req: Request, res: Response) => {
+  const uid = userId(req);
+  const campaigns = await listCampaigns(uid, Math.min(Number(req.query.limit) || 20, 100));
+  return res.json({ campaigns });
 };

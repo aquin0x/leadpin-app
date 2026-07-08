@@ -10,6 +10,7 @@ import {
   startWhatsAppCampaign,
   stopWhatsAppCampaign,
   getCampaignStatus,
+  getCampaignHistory,
 } from '../controllers/whatsapp.controller';
 
 const router = Router();
@@ -28,5 +29,6 @@ router.post('/send-single', sendSingle);
 router.post('/campaign/start', startWhatsAppCampaign);
 router.post('/campaign/stop', stopWhatsAppCampaign);
 router.get('/campaign', getCampaignStatus);
+router.get('/campaigns', getCampaignHistory);
 
 export default router;

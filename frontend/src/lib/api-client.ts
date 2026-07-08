@@ -70,6 +70,7 @@ export async function getBusinesses(
   if (filters.district) params.set("district", filters.district)
   if (filters.neighborhood) params.set("neighborhood", filters.neighborhood)
   if (filters.category) params.set("category", filters.category)
+  if (filters.status) params.set("status", filters.status)
   if (filters.hasEmail != null) params.set("hasEmail", String(filters.hasEmail))
   if (filters.hasWebsite != null) params.set("hasWebsite", String(filters.hasWebsite))
   if (filters.hasPhone != null) params.set("hasPhone", String(filters.hasPhone))
@@ -90,11 +91,28 @@ export async function getBusiness(id: string): Promise<Business> {
   return fetchApi<Business>(`/api/businesses/${id}`)
 }
 
+export async function updateBusiness(
+  id: string,
+  updates: { status?: Business["status"]; notes?: string | null }
+): Promise<Business> {
+  return fetchApi<Business>(`/api/businesses/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  })
+}
+
 export interface DashboardStats {
   total: number
   withWebsite: number
   withPhone: number
   thisMonth: number
+  funnel: {
+    messagesSent: number
+    linkClicks: number
+    contacted: number
+    replied: number
+    converted: number
+  }
 }
 
 export async function getStats(): Promise<DashboardStats> {
@@ -134,9 +152,54 @@ export async function startScrape(data: {
 }
 
 export async function clearAllData(): Promise<{ message: string }> {
+  // Backend geri dönüşü olmayan bu işlem için açık onay metni ister
   return fetchApi<{ message: string }>("/api/admin/clear-data", {
     method: "POST",
+    body: JSON.stringify({ confirm: "SİL" }),
   })
+}
+
+// === Mesaj şablonları (sunucuda saklanır) ===
+
+export interface MessageTemplate {
+  id: string
+  name: string
+  template: string
+  template_no_website: string | null
+  created_at: string
+}
+
+export async function listTemplates(): Promise<MessageTemplate[]> {
+  return fetchApi<MessageTemplate[]>("/api/templates")
+}
+
+export async function createTemplate(body: {
+  name: string
+  template: string
+  template_no_website?: string
+}): Promise<MessageTemplate> {
+  return fetchApi<MessageTemplate>("/api/templates", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteTemplate(id: string): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>(`/api/templates/${id}`, { method: "DELETE" })
+}
+
+// === Gelen kutusu ===
+
+export interface InboxRow {
+  id: string
+  from_phone: string
+  body: string | null
+  received_at: string
+  business: { id: string; name: string; phone: string | null; status: string } | null
+}
+
+export async function listInbox(limit = 100, offset = 0): Promise<{ rows: InboxRow[]; total: number }> {
+  return fetchApi(`/api/inbox?limit=${limit}&offset=${offset}`)
 }
 
 export async function logWhatsApp(data: {
@@ -228,12 +291,18 @@ export interface WhatsAppMedia {
 export async function startWhatsAppCampaign(body: {
   listId: string
   lineId?: string
+  // Birden çok hat verilirse mesajlar hatlar arasında rotasyonla dağıtılır
+  lineIds?: string[]
   messageTemplate: string
   messageTemplateNoWebsite?: string
   minDelaySec?: number
   maxDelaySec?: number
   coffeeBreakEvery?: number
   coffeeBreakMinutes?: number
+  // Gönderim saat penceresi (0-23; ikisi eşitse sınırsız) ve günlük limit (0 => sınırsız)
+  sendStartHour?: number
+  sendEndHour?: number
+  dailyLimit?: number
   media?: WhatsAppMedia
 }): Promise<WhatsAppCampaign> {
   return fetchApi<WhatsAppCampaign>("/api/whatsapp/campaign/start", {

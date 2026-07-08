@@ -1,3 +1,5 @@
+export type BusinessStatus = 'new' | 'contacted' | 'replied' | 'converted' | 'rejected'
+
 export interface Business {
   id: string
   name: string
@@ -11,10 +13,19 @@ export interface Business {
   rating?: number
   reviews_count?: number
   google_maps_url?: string
-  status?: string
+  status?: BusinessStatus
+  notes?: string | null
   created_at: string
   contacts?: Contact[]
   outreach_logs?: OutreachLog[]
+  incoming_messages?: IncomingMessage[]
+}
+
+export interface IncomingMessage {
+  id: string
+  from_phone: string
+  body?: string
+  received_at: string
 }
 
 export interface Contact {
@@ -53,6 +64,7 @@ export interface BusinessFilters {
   district?: string
   neighborhood?: string
   category?: string
+  status?: BusinessStatus
   hasEmail?: boolean
   hasWebsite?: boolean
   hasPhone?: boolean

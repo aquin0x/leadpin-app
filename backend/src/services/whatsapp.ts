@@ -1,4 +1,4 @@
-import type { Client as WAClient } from 'whatsapp-web.js';
+import type { Client as WAClient, Message as WAMessage } from 'whatsapp-web.js';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -27,10 +27,23 @@ export type SessionStatus =
   | 'ready'
   | 'auth_failure';
 
+export interface CampaignSettings {
+  minDelaySec: number;
+  maxDelaySec: number;
+  coffeeBreakEvery: number;
+  coffeeBreakMinutes: number;
+  // Gönderim saat penceresi (sunucu yerel saati). start === end => sınırsız.
+  sendStartHour: number;
+  sendEndHour: number;
+  // Günlük toplam gönderim limiti (0 => sınırsız). outreach_logs üzerinden sayılır.
+  dailyLimit: number;
+}
+
 export interface CampaignState {
   id: string;
   userId: string;
   listId: string;
+  lineIds: string[];
   total: number;
   processed: number;
   sent: number;
@@ -63,7 +76,7 @@ interface Session {
 }
 
 const SESSION_ROOT = path.resolve(process.cwd(), '.wwebjs_auth');
-const LINES_FILE = path.join(SESSION_ROOT, '_lines.json');
+const LEGACY_LINES_FILE = path.join(SESSION_ROOT, '_lines.json');
 
 // Keyed by lineId (UUID)
 const sessions = new Map<string, Session>();
@@ -74,45 +87,85 @@ function ensureRoot() {
   try { fs.mkdirSync(SESSION_ROOT, { recursive: true }); } catch {}
 }
 
-function loadLines(): Record<string, LineMeta[]> {
-  try {
-    ensureRoot();
-    if (!fs.existsSync(LINES_FILE)) return {};
-    const raw = fs.readFileSync(LINES_FILE, 'utf8');
-    return JSON.parse(raw) || {};
-  } catch {
-    return {};
+// === Hat metadata'sı artık Supabase'de (whatsapp_lines) ===
+
+function rowToMeta(row: any): LineMeta {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    label: row.label,
+    phone: row.phone || undefined,
+    createdAt: new Date(row.created_at).getTime(),
+  };
+}
+
+async function getUserLines(userId: string): Promise<LineMeta[]> {
+  const { data, error } = await supabase
+    .from('whatsapp_lines')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+  if (error) {
+    console.error('[WA] whatsapp_lines okunamadı:', error.message);
+    return [];
   }
+  return (data || []).map(rowToMeta);
 }
 
-function saveLines(all: Record<string, LineMeta[]>) {
-  try {
-    ensureRoot();
-    fs.writeFileSync(LINES_FILE, JSON.stringify(all, null, 2), 'utf8');
-  } catch (err: any) {
-    console.error('[WA] lines save failed:', err.message);
+async function getAllLines(): Promise<LineMeta[]> {
+  const { data, error } = await supabase.from('whatsapp_lines').select('*');
+  if (error) {
+    console.error('[WA] whatsapp_lines okunamadı:', error.message);
+    return [];
   }
+  return (data || []).map(rowToMeta);
 }
 
-function getUserLines(userId: string): LineMeta[] {
-  return loadLines()[userId] || [];
+async function getLineMeta(userId: string, lineId: string): Promise<LineMeta | null> {
+  const { data } = await supabase
+    .from('whatsapp_lines')
+    .select('*')
+    .eq('id', lineId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data ? rowToMeta(data) : null;
 }
 
-function upsertLine(meta: LineMeta) {
-  const all = loadLines();
-  const arr = all[meta.userId] || [];
-  const idx = arr.findIndex((l) => l.id === meta.id);
-  if (idx >= 0) arr[idx] = meta;
-  else arr.push(meta);
-  all[meta.userId] = arr;
-  saveLines(all);
+async function upsertLine(meta: LineMeta): Promise<void> {
+  const { error } = await supabase.from('whatsapp_lines').upsert({
+    id: meta.id,
+    user_id: meta.userId,
+    label: meta.label,
+    phone: meta.phone || null,
+    created_at: new Date(meta.createdAt).toISOString(),
+  });
+  if (error) console.error('[WA] line upsert failed:', error.message);
 }
 
-function deleteLineMeta(userId: string, lineId: string) {
-  const all = loadLines();
-  const arr = (all[userId] || []).filter((l) => l.id !== lineId);
-  all[userId] = arr;
-  saveLines(all);
+async function deleteLineMeta(userId: string, lineId: string): Promise<void> {
+  const { error } = await supabase
+    .from('whatsapp_lines')
+    .delete()
+    .eq('id', lineId)
+    .eq('user_id', userId);
+  if (error) console.error('[WA] line delete failed:', error.message);
+}
+
+// Eski dosya tabanlı kayıtları bir defalık DB'ye taşı.
+async function migrateLegacyLinesFile(): Promise<void> {
+  try {
+    if (!fs.existsSync(LEGACY_LINES_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(LEGACY_LINES_FILE, 'utf8')) as Record<string, LineMeta[]>;
+    for (const userId of Object.keys(raw || {})) {
+      for (const meta of raw[userId] || []) {
+        await upsertLine({ ...meta, userId });
+      }
+    }
+    fs.renameSync(LEGACY_LINES_FILE, LEGACY_LINES_FILE + '.migrated');
+    console.log('[WA] _lines.json kayıtları Supabase whatsapp_lines tablosuna taşındı.');
+  } catch (e: any) {
+    console.error('[WA] legacy lines migration failed:', e?.message);
+  }
 }
 
 function buildPuppeteerArgs(): string[] {
@@ -126,6 +179,7 @@ function buildPuppeteerArgs(): string[] {
 }
 
 async function createClient(lineId: string): Promise<Client> {
+  ensureRoot();
   const { Client, LocalAuth } = await loadWA();
   return new Client({
     authStrategy: new LocalAuth({ clientId: lineId, dataPath: SESSION_ROOT }),
@@ -134,6 +188,57 @@ async function createClient(lineId: string): Promise<Client> {
       args: buildPuppeteerArgs(),
     },
   });
+}
+
+// === Gelen mesaj işleme: inbox kaydı + otomatik 'replied' + STOP opt-out ===
+
+const OPT_OUT_RX = /^\s*(stop|dur|iptal|istemiyorum|listeden\s*[cç][ıi]kar|rahats[ıi]z\s*etme)\b/i;
+
+async function handleIncomingMessage(session: Session, msg: WAMessage): Promise<void> {
+  try {
+    // Yalnızca birebir sohbetler (grup/status/broadcast hariç)
+    if (!msg.from?.endsWith('@c.us') || msg.fromMe) return;
+    const digits = msg.from.replace(/\D/g, '');
+    if (!digits) return;
+    const body = (msg.body || '').slice(0, 5000);
+
+    // İşletmeyi normalize telefon üzerinden bul (son 10 hane ile eşleştir)
+    const last10 = digits.slice(-10);
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('id, name, status')
+      .eq('user_id', session.userId)
+      .like('phone_digits', `%${last10}`)
+      .maybeSingle();
+
+    await supabase.from('incoming_messages').insert({
+      user_id: session.userId,
+      line_id: session.lineId,
+      business_id: biz?.id ?? null,
+      from_phone: digits,
+      body,
+    });
+
+    // Cevap geldi → lead'i otomatik 'replied' yap (dönüşmüş/reddedilmişse dokunma)
+    if (biz && (biz.status === 'new' || biz.status === 'contacted')) {
+      await supabase
+        .from('businesses')
+        .update({ status: 'replied' })
+        .eq('id', biz.id);
+      console.log(`[WA:${session.lineId}] ${biz.name} cevap verdi → replied`);
+    }
+
+    // Opt-out: STOP benzeri mesajlar karalisteye
+    if (OPT_OUT_RX.test(body)) {
+      await supabase.from('blacklist').upsert(
+        { user_id: session.userId, phone: digits, reason: 'opt-out (gelen mesaj)' },
+        { onConflict: 'user_id,phone' }
+      );
+      console.log(`[WA:${session.lineId}] ${digits} opt-out → karalisteye eklendi`);
+    }
+  } catch (e: any) {
+    console.error(`[WA:${session.lineId}] incoming message handling failed:`, e?.message);
+  }
 }
 
 async function createSession(meta: LineMeta): Promise<Session> {
@@ -178,7 +283,7 @@ async function createSession(meta: LineMeta): Promise<Session> {
       const wid = (client as any).info?.wid?.user;
       if (wid) {
         session.phone = String(wid);
-        upsertLine({
+        void upsertLine({
           id: meta.id,
           userId: meta.userId,
           label: session.label,
@@ -188,6 +293,10 @@ async function createSession(meta: LineMeta): Promise<Session> {
       }
     } catch {}
     console.log(`[WA:${meta.id}] ready`);
+  });
+
+  client.on('message', (msg) => {
+    void handleIncomingMessage(session, msg);
   });
 
   client.on('disconnected', (reason) => {
@@ -207,8 +316,7 @@ async function getOrCreateSession(meta: LineMeta): Promise<Session> {
 }
 
 export async function initLine(userId: string, lineId: string): Promise<Session | null> {
-  const metas = getUserLines(userId);
-  const meta = metas.find((l) => l.id === lineId);
+  const meta = await getLineMeta(userId, lineId);
   if (!meta) return null;
 
   let session = await getOrCreateSession(meta);
@@ -255,13 +363,14 @@ export async function initLine(userId: string, lineId: string): Promise<Session 
 
 export async function addLine(userId: string, label?: string): Promise<Session> {
   const lineId = crypto.randomUUID();
+  const existing = await getUserLines(userId);
   const meta: LineMeta = {
     id: lineId,
     userId,
-    label: label?.trim() || `Hat ${getUserLines(userId).length + 1}`,
+    label: label?.trim() || `Hat ${existing.length + 1}`,
     createdAt: Date.now(),
   };
-  upsertLine(meta);
+  await upsertLine(meta);
   const session = await createSession(meta);
   // Start initialize in background so caller can return fast
   initLine(userId, lineId).catch((e) =>
@@ -271,8 +380,7 @@ export async function addLine(userId: string, label?: string): Promise<Session> 
 }
 
 export async function removeLine(userId: string, lineId: string): Promise<boolean> {
-  const metas = getUserLines(userId);
-  const meta = metas.find((l) => l.id === lineId);
+  const meta = await getLineMeta(userId, lineId);
   if (!meta) return false;
   const session = sessions.get(lineId);
   if (session) {
@@ -280,7 +388,7 @@ export async function removeLine(userId: string, lineId: string): Promise<boolea
     try { await session.client.destroy(); } catch {}
     sessions.delete(lineId);
   }
-  deleteLineMeta(userId, lineId);
+  await deleteLineMeta(userId, lineId);
   // Profil klasörünü sil
   try {
     fs.rmSync(path.join(SESSION_ROOT, `session-${lineId}`), { recursive: true, force: true });
@@ -311,8 +419,8 @@ export interface LineStatus {
   createdAt: number;
 }
 
-export function listLines(userId: string): LineStatus[] {
-  const metas = getUserLines(userId);
+export async function listLines(userId: string): Promise<LineStatus[]> {
+  const metas = await getUserLines(userId);
   return metas
     .sort((a, b) => a.createdAt - b.createdAt)
     .map((m) => {
@@ -329,9 +437,8 @@ export function listLines(userId: string): LineStatus[] {
     });
 }
 
-export function getLineStatus(userId: string, lineId: string): LineStatus | null {
-  const metas = getUserLines(userId);
-  const m = metas.find((x) => x.id === lineId);
+export async function getLineStatus(userId: string, lineId: string): Promise<LineStatus | null> {
+  const m = await getLineMeta(userId, lineId);
   if (!m) return null;
   const s = sessions.get(lineId);
   return {
@@ -354,17 +461,29 @@ function pickReadySession(userId: string): Session | null {
 
 // Bootstrap: backend başlarken kayıtlı tüm hatları otomatik başlat
 export async function bootstrapLines(): Promise<void> {
-  const all = loadLines();
-  for (const userId of Object.keys(all)) {
-    for (const meta of all[userId]) {
-      try {
-        await createSession(meta);
-        initLine(userId, meta.id).catch(() => {});
-      } catch (e: any) {
-        console.error(`[WA:${meta.id}] bootstrap error:`, e?.message);
-      }
+  await migrateLegacyLinesFile();
+  const all = await getAllLines();
+  for (const meta of all) {
+    try {
+      await createSession(meta);
+      initLine(meta.userId, meta.id).catch(() => {});
+    } catch (e: any) {
+      console.error(`[WA:${meta.id}] bootstrap error:`, e?.message);
     }
   }
+}
+
+// Restart'ta 'running' takılı kalan kampanyaları kapat
+export async function recoverStaleCampaigns(): Promise<void> {
+  const { error, count } = await supabase
+    .from('whatsapp_campaigns')
+    .update(
+      { status: 'failed', last_error: 'Sunucu yeniden başlatıldı, kampanya yarıda kaldı', finished_at: new Date().toISOString() },
+      { count: 'exact' }
+    )
+    .eq('status', 'running');
+  if (error) throw new Error(error.message);
+  if (count) console.log(`[WA] ${count} yarım kalmış kampanya 'failed' olarak işaretlendi.`);
 }
 
 function normalizePhone(raw: string): string | null {
@@ -432,6 +551,48 @@ async function logOutreach(
     message_content: detail ? `${message}\n\n[${detail}]` : message,
     status,
   });
+  // Kampanya/tekil gönderim başarılıysa lead'i 'contacted' yap (yalnızca 'new' ise)
+  if (status === 'sent') {
+    await supabase
+      .from('businesses')
+      .update({ status: 'contacted' })
+      .eq('id', businessId)
+      .eq('user_id', userId)
+      .eq('status', 'new');
+  }
+}
+
+async function isBlacklisted(userId: string, phoneDigits: string): Promise<boolean> {
+  const last10 = phoneDigits.slice(-10);
+  const { data } = await supabase
+    .from('blacklist')
+    .select('id')
+    .eq('user_id', userId)
+    .like('phone', `%${last10}`)
+    .limit(1);
+  return !!(data && data.length > 0);
+}
+
+// Bugün (sunucu yerel günü) gönderilen whatsapp mesajı sayısı
+async function sentTodayCount(userId: string): Promise<number> {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const { count } = await supabase
+    .from('outreach_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('type', 'whatsapp')
+    .eq('status', 'sent')
+    .gte('created_at', start.toISOString());
+  return count || 0;
+}
+
+function withinSendWindow(startHour: number, endHour: number): boolean {
+  if (startHour === endHour) return true; // sınırsız
+  const h = new Date().getHours();
+  if (startHour < endHour) return h >= startHour && h < endHour;
+  // Gece yarısını aşan pencere (örn. 22-06)
+  return h >= startHour || h < endHour;
 }
 
 export interface MediaAttachment {
@@ -443,13 +604,17 @@ export interface MediaAttachment {
 export interface StartCampaignParams {
   userId: string;
   listId: string;
-  lineId?: string;
+  // Rotasyon: birden çok hat verilirse mesajlar hatlar arasında sırayla dağıtılır.
+  lineIds?: string[];
   messageTemplate: string;
   messageTemplateNoWebsite?: string;
   minDelaySec?: number;
   maxDelaySec?: number;
   coffeeBreakEvery?: number;
   coffeeBreakMinutes?: number;
+  sendStartHour?: number;
+  sendEndHour?: number;
+  dailyLimit?: number;
   media?: MediaAttachment;
 }
 
@@ -457,7 +622,7 @@ export type SingleSendResult =
   | { ok: true; lineId: string }
   | { ok: false; reason: 'no_line'; hint: string }
   | { ok: false; reason: 'not_ready'; lines: LineStatus[] }
-  | { ok: false; reason: 'no_phone' | 'no_whatsapp' | 'send_failed'; error?: string };
+  | { ok: false; reason: 'no_phone' | 'no_whatsapp' | 'send_failed' | 'blacklisted'; error?: string };
 
 export async function sendSingleMessage(params: {
   userId: string;
@@ -478,7 +643,7 @@ export async function sendSingleMessage(params: {
   }
 
   if (!session) {
-    const userLines = listLines(userId);
+    const userLines = await listLines(userId);
     if (userLines.length === 0) {
       return { ok: false, reason: 'no_line', hint: 'Önce bir WhatsApp hattı ekleyin.' };
     }
@@ -497,6 +662,11 @@ export async function sendSingleMessage(params: {
   if (!phone) {
     await logOutreach(userId, biz.id, 'skipped', message, 'Geçersiz numara');
     return { ok: false, reason: 'no_phone' };
+  }
+
+  if (await isBlacklisted(userId, phone)) {
+    await logOutreach(userId, biz.id, 'skipped', message, 'Karalistede (opt-out)');
+    return { ok: false, reason: 'blacklisted', error: 'Numara karalistede' };
   }
 
   let mediaInstance: any = null;
@@ -525,19 +695,50 @@ export async function sendSingleMessage(params: {
   }
 }
 
+// === Kampanya durumu DB senkronizasyonu ===
+
+async function persistCampaign(campaign: CampaignState, settings?: CampaignSettings): Promise<void> {
+  const { error } = await supabase.from('whatsapp_campaigns').upsert({
+    id: campaign.id,
+    user_id: campaign.userId,
+    list_id: campaign.listId,
+    line_ids: campaign.lineIds,
+    total: campaign.total,
+    processed: campaign.processed,
+    sent: campaign.sent,
+    failed: campaign.failed,
+    skipped: campaign.skipped,
+    status: campaign.status,
+    current_lead: campaign.currentLead ?? null,
+    last_error: campaign.lastError ?? null,
+    settings: settings ?? undefined,
+    started_at: new Date(campaign.startedAt).toISOString(),
+    finished_at: campaign.finishedAt ? new Date(campaign.finishedAt).toISOString() : null,
+  });
+  if (error) console.error('[WA] campaign persist failed:', error.message);
+}
+
 export async function startCampaign(params: StartCampaignParams): Promise<CampaignState> {
   const {
     userId,
     listId,
-    lineId,
+    lineIds,
     messageTemplate,
     messageTemplateNoWebsite,
     minDelaySec = 60,
     maxDelaySec = 120,
     coffeeBreakEvery = 20,
     coffeeBreakMinutes = 15,
+    sendStartHour = 0,
+    sendEndHour = 0,
+    dailyLimit = 0,
     media,
   } = params;
+
+  const settings: CampaignSettings = {
+    minDelaySec, maxDelaySec, coffeeBreakEvery, coffeeBreakMinutes,
+    sendStartHour, sendEndHour, dailyLimit,
+  };
 
   let mediaInstance: InstanceType<Awaited<ReturnType<typeof loadWA>>['MessageMedia']> | null = null;
   if (media?.data && media?.mimeType) {
@@ -545,14 +746,22 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
     mediaInstance = new MessageMedia(media.mimeType, media.data, media.filename || 'attachment');
   }
 
-  let session: Session | null = null;
-  if (lineId) {
-    const s = sessions.get(lineId);
-    if (s && s.userId === userId && s.status === 'ready') session = s;
+  // Rotasyon havuzu: verilen hatlar ya da kullanıcının tüm hatları
+  const requestedIds = (lineIds || []).filter(Boolean);
+  const poolIds: string[] = [];
+  if (requestedIds.length > 0) {
+    for (const id of requestedIds) {
+      const s = sessions.get(id);
+      if (s && s.userId === userId) poolIds.push(id);
+    }
   } else {
-    session = pickReadySession(userId);
+    for (const s of sessions.values()) {
+      if (s.userId === userId) poolIds.push(s.lineId);
+    }
   }
-  if (!session) {
+
+  const anyReady = poolIds.some((id) => sessions.get(id)?.status === 'ready');
+  if (!anyReady) {
     throw new Error('Hazır bir WhatsApp hattı yok. Hesap > WhatsApp Hattı Ekle menüsünden QR okutun.');
   }
 
@@ -572,9 +781,10 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
     .filter(Boolean);
 
   const campaign: CampaignState & { stopRequested?: boolean } = {
-    id: `${listId}-${Date.now()}`,
+    id: crypto.randomUUID(),
     userId,
     listId,
+    lineIds: poolIds,
     total: businesses.length,
     processed: 0,
     sent: 0,
@@ -585,10 +795,25 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
     stopRequested: false,
   };
   campaigns.set(userId, campaign);
+  await persistCampaign(campaign, settings);
 
-  const chosenLineId = session.lineId;
+  // Round-robin hat seçimi: sıradaki 'ready' hattı döndürür
+  let rotationIndex = 0;
+  const nextReadySession = (): Session | null => {
+    for (let i = 0; i < poolIds.length; i++) {
+      const idx = (rotationIndex + i) % poolIds.length;
+      const s = sessions.get(poolIds[idx]);
+      if (s && s.status === 'ready') {
+        rotationIndex = idx + 1;
+        return s;
+      }
+    }
+    return null;
+  };
 
   (async () => {
+    let dailySent = dailyLimit > 0 ? await sentTodayCount(userId) : 0;
+
     for (const biz of businesses) {
       const current = campaigns.get(userId);
       if (!current || current.stopRequested) {
@@ -596,11 +821,38 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
         break;
       }
 
-      // Her iterasyonda session'ı yeniden kontrol et (bağlantı düşebilir)
-      const live = sessions.get(chosenLineId);
-      if (!live || live.status !== 'ready') {
+      // Günlük limit kontrolü
+      if (dailyLimit > 0 && dailySent >= dailyLimit) {
+        campaign.status = 'stopped';
+        campaign.lastError = `Günlük gönderim limiti (${dailyLimit}) doldu`;
+        break;
+      }
+
+      // Gönderim saat penceresi: pencere dışındaysak pencere açılana kadar bekle
+      while (!withinSendWindow(sendStartHour, sendEndHour)) {
+        const c = campaigns.get(userId);
+        if (!c || c.stopRequested) break;
+        campaign.currentLead = `Saat penceresi bekleniyor (${String(sendStartHour).padStart(2, '0')}:00-${String(sendEndHour).padStart(2, '0')}:00)`;
+        await persistCampaign(campaign, settings);
+        await sleep(60_000);
+      }
+      if (campaigns.get(userId)?.stopRequested) {
+        campaign.status = 'stopped';
+        break;
+      }
+
+      // Rotasyon: sıradaki hazır hat; hepsi koptuysa 5 dakikaya kadar bekle
+      let live: Session | null = nextReadySession();
+      if (!live) {
+        for (let wait = 0; wait < 10 && !live; wait++) {
+          await sleep(30_000);
+          if (campaigns.get(userId)?.stopRequested) break;
+          live = nextReadySession();
+        }
+      }
+      if (!live) {
         campaign.status = 'failed';
-        campaign.lastError = 'WhatsApp bağlantısı koptu';
+        campaign.lastError = 'Hiçbir WhatsApp hattı hazır değil (bağlantı koptu)';
         break;
       }
 
@@ -610,6 +862,16 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
         campaign.skipped++;
         campaign.processed++;
         await logOutreach(userId, biz.id, 'skipped', '', 'Geçersiz veya sabit hat numarası');
+        await persistCampaign(campaign, settings);
+        continue;
+      }
+
+      // Karaliste (kampanya sırasında gelen opt-out'lar da anında etkili olur)
+      if (await isBlacklisted(userId, phone)) {
+        campaign.skipped++;
+        campaign.processed++;
+        await logOutreach(userId, biz.id, 'skipped', '', 'Karalistede (opt-out)');
+        await persistCampaign(campaign, settings);
         continue;
       }
 
@@ -631,6 +893,7 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
           campaign.skipped++;
           campaign.processed++;
           await logOutreach(userId, biz.id, 'skipped', message, 'WhatsApp hesabı yok');
+          await persistCampaign(campaign, settings);
           continue;
         }
 
@@ -645,12 +908,14 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
 
         campaign.sent++;
         campaign.processed++;
+        dailySent++;
         await logOutreach(userId, biz.id, 'sent', message);
+        await persistCampaign(campaign, settings);
 
         const isLast = campaign.processed === campaign.total;
         if (!isLast) {
           if (coffeeBreakEvery > 0 && campaign.sent > 0 && campaign.sent % coffeeBreakEvery === 0) {
-            console.log(`[WA:${chosenLineId}] coffee break ${coffeeBreakMinutes}dk`);
+            console.log(`[WA:${live.lineId}] coffee break ${coffeeBreakMinutes}dk`);
             await sleep(coffeeBreakMinutes * 60 * 1000);
           } else {
             await sleep(randomBetween(minDelaySec * 1000, maxDelaySec * 1000));
@@ -661,18 +926,21 @@ export async function startCampaign(params: StartCampaignParams): Promise<Campai
         campaign.processed++;
         campaign.lastError = err.message;
         await logOutreach(userId, biz.id, 'failed', message, err.message);
-        console.error(`[WA:${chosenLineId}] send failed for ${biz.name}:`, err.message);
+        await persistCampaign(campaign, settings);
+        console.error(`[WA:${live.lineId}] send failed for ${biz.name}:`, err.message);
       }
     }
 
     if (campaign.status === 'running') campaign.status = 'completed';
     campaign.finishedAt = Date.now();
     campaign.currentLead = undefined;
+    await persistCampaign(campaign, settings);
     console.log(`[WA:${userId}] campaign done:`, campaign);
-  })().catch((err) => {
+  })().catch(async (err) => {
     campaign.status = 'failed';
     campaign.lastError = err.message;
     campaign.finishedAt = Date.now();
+    await persistCampaign(campaign, settings);
     console.error(`[WA:${userId}] campaign crashed:`, err);
   });
 
@@ -686,6 +954,45 @@ export function stopCampaign(userId: string): CampaignState | null {
   return campaign;
 }
 
-export function getCampaign(userId: string): CampaignState | null {
-  return campaigns.get(userId) ?? null;
+export async function getCampaign(userId: string): Promise<CampaignState | null> {
+  const inMemory = campaigns.get(userId);
+  if (inMemory) return inMemory;
+
+  // Restart sonrası: son kampanyayı DB'den göster
+  const { data } = await supabase
+    .from('whatsapp_campaigns')
+    .select('*')
+    .eq('user_id', userId)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    id: data.id,
+    userId: data.user_id,
+    listId: data.list_id,
+    lineIds: data.line_ids || [],
+    total: data.total,
+    processed: data.processed,
+    sent: data.sent,
+    failed: data.failed,
+    skipped: data.skipped,
+    status: data.status,
+    currentLead: data.current_lead ?? undefined,
+    startedAt: new Date(data.started_at).getTime(),
+    finishedAt: data.finished_at ? new Date(data.finished_at).getTime() : undefined,
+    lastError: data.last_error ?? undefined,
+  };
+}
+
+// Kampanya geçmişi (UI'da liste olarak gösterilebilir)
+export async function listCampaigns(userId: string, limit = 20): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('whatsapp_campaigns')
+    .select('*')
+    .eq('user_id', userId)
+    .order('started_at', { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return data || [];
 }

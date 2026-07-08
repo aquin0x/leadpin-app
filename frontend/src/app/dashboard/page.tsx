@@ -54,6 +54,7 @@ function DashboardContent() {
     district: searchParams.get("district") || undefined,
     neighborhood: searchParams.get("neighborhood") || undefined,
     category: searchParams.get("category") || undefined,
+    status: (searchParams.get("status") as BusinessFilters["status"]) || undefined,
     hasEmail: searchParams.get("hasEmail") === "true" ? true : undefined,
     hasWebsite: searchParams.get("hasWebsite") === "true" ? true : undefined,
     hasPhone: searchParams.get("hasPhone") === "true" ? true : undefined,
@@ -231,6 +232,7 @@ function DashboardContent() {
                   limit={limit}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
+                  filters={filters}
                   onPageChange={handlePageChange}
                   onLimitChange={handleLimitChange}
                   onSort={handleSort}
